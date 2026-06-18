@@ -1,0 +1,553 @@
+openapi: 3.1.0
+info:
+  title: AmioChat API
+  version: 1.0.0
+  description: REST API for AmioChat MVP. Real-time messaging uses WebSocket (see websocket-protocol.md).
+servers:
+  - url: https://api.{env}.amiochat.example.com
+    variables:
+      env:
+        default: dev
+        enum: [dev, staging, prod]
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Users
+  - name: Conversations
+  - name: Messages
+  - name: Media
+  - name: Calls
+
+paths:
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    patch:
+      tags: [Users]
+      summary: Update current user profile
+      operationId: updateCurrentUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                avatarKey:
+                  type: string
+                  description: S3 key from prior avatar upload
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/search:
+    get:
+      tags: [Users]
+      summary: Search users by email
+      operationId: searchUsers
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+          description: Email prefix or full email
+      responses:
+        '200':
+          description: Matching users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserPublic'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /conversations:
+    get:
+      tags: [Conversations]
+      summary: List conversations for current user
+      operationId: listConversations
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+      responses:
+        '200':
+          description: Conversation inbox
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Conversations]
+      summary: Create or get 1:1 conversation
+      operationId: createConversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [participantId]
+              properties:
+                participantId:
+                  type: string
+                  description: Other user's Cognito sub
+      responses:
+        '200':
+          description: Existing conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '201':
+          description: New conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /conversations/{convId}/messages:
+    get:
+      tags: [Messages]
+      summary: Paginated message history
+      operationId: listMessages
+      parameters:
+        - $ref: '#/components/parameters/ConvId'
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Opaque pagination cursor
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Return messages after this timestamp (reconnect sync)
+      responses:
+        '200':
+          description: Message page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+                  nextCursor:
+                    type: string
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /media/upload-url:
+    post:
+      tags: [Media]
+      summary: Get presigned URL for media upload
+      operationId: createUploadUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [convId, filename, contentType]
+              properties:
+                convId:
+                  type: string
+                filename:
+                  type: string
+                  maxLength: 255
+                contentType:
+                  type: string
+                  enum:
+                    - image/jpeg
+                    - image/png
+                    - image/webp
+                    - application/pdf
+                    - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+      responses:
+        '200':
+          description: Presigned upload details
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [uploadUrl, mediaKey, expiresAt]
+                properties:
+                  uploadUrl:
+                    type: string
+                    format: uri
+                  mediaKey:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /media/download-url:
+    post:
+      tags: [Media]
+      summary: Get presigned URL for media download
+      operationId: createDownloadUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mediaKey]
+              properties:
+                mediaKey:
+                  type: string
+      responses:
+        '200':
+          description: Presigned download URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  downloadUrl:
+                    type: string
+                    format: uri
+                  expiresAt:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /calls:
+    post:
+      tags: [Calls]
+      summary: Initiate a voice or video call
+      operationId: createCall
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [convId, type]
+              properties:
+                convId:
+                  type: string
+                type:
+                  type: string
+                  enum: [voice, video]
+      responses:
+        '201':
+          description: Call created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Callee already in a call
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /calls/{callId}/join:
+    post:
+      tags: [Calls]
+      summary: Join an existing Chime meeting
+      operationId: joinCall
+      parameters:
+        - name: callId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Attendee credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChimeAttendee'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: Call already ended
+
+  /calls/{callId}:
+    delete:
+      tags: [Calls]
+      summary: End a call
+      operationId: endCall
+      parameters:
+        - name: callId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Call ended
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognito ID token
+
+  parameters:
+    ConvId:
+      name: convId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: direct#user-a#user-b
+
+  schemas:
+    User:
+      type: object
+      required: [userId, email, displayName]
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+        presence:
+          type: string
+          enum: [online, offline, away]
+        lastSeenAt:
+          type: string
+          format: date-time
+
+    UserPublic:
+      type: object
+      required: [userId, email, displayName]
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+
+    Conversation:
+      type: object
+      required: [convId, participant, lastMessageAt, unreadCount]
+      properties:
+        convId:
+          type: string
+        participant:
+          $ref: '#/components/schemas/UserPublic'
+        lastMessageAt:
+          type: string
+          format: date-time
+        lastMessagePreview:
+          type: string
+        unreadCount:
+          type: integer
+          minimum: 0
+
+    Message:
+      type: object
+      required: [messageId, convId, senderId, type, status, createdAt]
+      properties:
+        messageId:
+          type: string
+        convId:
+          type: string
+        senderId:
+          type: string
+        type:
+          type: string
+          enum: [text, image, file, system]
+        body:
+          type: string
+        mediaKey:
+          type: string
+        mediaUrl:
+          type: string
+          format: uri
+          description: Presigned URL when type is image or file
+        status:
+          type: string
+          enum: [sent, delivered, read]
+        createdAt:
+          type: string
+          format: date-time
+
+    CallSession:
+      type: object
+      required: [callId, convId, type, status, chimeMeeting, attendee]
+      properties:
+        callId:
+          type: string
+        convId:
+          type: string
+        type:
+          type: string
+          enum: [voice, video]
+        status:
+          type: string
+          enum: [ringing, connected, declined, missed, ended]
+        chimeMeeting:
+          $ref: '#/components/schemas/ChimeMeeting'
+        attendee:
+          $ref: '#/components/schemas/ChimeAttendee'
+
+    ChimeMeeting:
+      type: object
+      required: [meetingId, mediaRegion]
+      properties:
+        meetingId:
+          type: string
+        mediaRegion:
+          type: string
+          example: us-east-1
+        externalMeetingId:
+          type: string
+
+    ChimeAttendee:
+      type: object
+      required: [attendeeId, joinToken]
+      properties:
+        attendeeId:
+          type: string
+        joinToken:
+          type: string
+        externalUserId:
+          type: string
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Not a conversation member
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
