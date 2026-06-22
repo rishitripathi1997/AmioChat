@@ -254,7 +254,7 @@ Requirements use IDs for traceability in design and test phases.
 | ------ | ---------------------------------------------------------------------------------- |
 | OPS-01 | Structured logging (CloudWatch) with correlation IDs                               |
 | OPS-02 | Metrics: message throughput, WebSocket connections, call success rate, error rates |
-| OPS-03 | Infrastructure defined as code (AWS CDK or Terraform)                              |
+| OPS-03 | Infrastructure defined as code (Terraform)                                           |
 | OPS-04 | Separate dev, staging, and production environments                                 |
 
 
@@ -337,7 +337,7 @@ MVP is **ready for limited beta** when:
 | --- | ------------------------ | ---------------------------------------------------------------------------------------------- |
 | D1  | Real-time chat transport | **API Gateway WebSockets + Lambda** — see [phase-2-architecture.md](./phase-2-architecture.md) |
 | D2  | Frontend framework       | **Next.js 15 (App Router)**                                                                    |
-| D3  | IaC tool                 | **AWS CDK (TypeScript)**                                                                       |
+| D3  | IaC tool                 | **Terraform (HCL)** — see [phase-2-architecture.md](./phase-2-architecture.md) ADR-004 |
 
 
 ### Resolved (Phase 1)
@@ -384,5 +384,3 @@ MVP is **ready for limited beta** when:
 | ------- | ---------- | ------------ | ------------------------------------------- |
 | 0.1     | 2026-06-16 | SDLC Phase 1 | Initial draft                               |
 | 0.2     | 2026-06-16 | SDLC Phase 1 | Stakeholder confirmations; Phase 1 approved |
-
-

@@ -14,17 +14,21 @@
 wss://ws.{env}.amiochat.example.com?token=<CognitoIdToken>
 ```
 
-| Step | Behavior |
-|------|----------|
+
+| Step       | Behavior                                                                                              |
+| ---------- | ----------------------------------------------------------------------------------------------------- |
 | `$connect` | Lambda validates JWT, extracts `sub` → `userId`, stores `CONN#<connectionId>`, sets presence `online` |
-| Success | Connection established; server may send `connected` event |
-| Failure | Connection rejected with 401 |
+| Success    | Connection established; server may send `connected` event                                             |
+| Failure    | Connection rejected with 401                                                                          |
+
 
 ### Disconnect
 
-| Step | Behavior |
-|------|----------|
+
+| Step          | Behavior                                                                                  |
+| ------------- | ----------------------------------------------------------------------------------------- |
 | `$disconnect` | Remove `CONN#` record; if no remaining connections, set presence `offline` + `lastSeenAt` |
+
 
 ### Heartbeat
 
@@ -48,11 +52,13 @@ All frames are JSON text.
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `action` | Yes | Handler route key |
-| `payload` | Yes | Action-specific body |
-| `requestId` | No | Client correlation ID; echoed in acks |
+
+| Field       | Required | Description                           |
+| ----------- | -------- | ------------------------------------- |
+| `action`    | Yes      | Handler route key                     |
+| `payload`   | Yes      | Action-specific body                  |
+| `requestId` | No       | Client correlation ID; echoed in acks |
+
 
 ### Server → Client
 
@@ -84,13 +90,15 @@ Send a text or media message.
 }
 ```
 
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `convId` | string | Yes | |
-| `clientMsgId` | uuid | Yes | Idempotency / optimistic UI |
-| `type` | enum | Yes | `text`, `image`, `file` |
-| `body` | string | If text | Max 4096 chars |
-| `mediaKey` | string | If media | From `/media/upload-url` |
+
+| Field         | Type   | Required | Notes                       |
+| ------------- | ------ | -------- | --------------------------- |
+| `convId`      | string | Yes      |                             |
+| `clientMsgId` | uuid   | Yes      | Idempotency / optimistic UI |
+| `type`        | enum   | Yes      | `text`, `image`, `file`     |
+| `body`        | string | If text  | Max 4096 chars              |
+| `mediaKey`    | string | If media | From `/media/upload-url`    |
+
 
 **Server:** Persist message → push `message.new` to recipient(s) → send `message.ack` to sender.
 
@@ -154,12 +162,14 @@ Relay call state between parties (supplements REST `/calls`).
 }
 ```
 
-| `signal` | Meaning |
-|----------|---------|
-| `accept` | Callee accepted; triggers caller notification |
-| `decline` | Callee declined |
-| `end` | Either party ended before REST DELETE |
-| `busy` | Callee in another call |
+
+| `signal`  | Meaning                                       |
+| --------- | --------------------------------------------- |
+| `accept`  | Callee accepted; triggers caller notification |
+| `decline` | Callee declined                               |
+| `end`     | Either party ended before REST DELETE         |
+| `busy`    | Callee in another call                        |
+
 
 ---
 
@@ -325,14 +335,16 @@ Response to `ping`.
 
 ## 5. Error codes
 
-| Code | HTTP equiv | When |
-|------|------------|------|
-| `UNAUTHORIZED` | 401 | Invalid/expired token |
-| `FORBIDDEN` | 403 | Not conversation member |
-| `NOT_FOUND` | 404 | Conversation or call not found |
-| `VALIDATION_ERROR` | 400 | Invalid payload |
-| `RATE_LIMITED` | 429 | Too many messages |
-| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+| Code               | HTTP equiv | When                           |
+| ------------------ | ---------- | ------------------------------ |
+| `UNAUTHORIZED`     | 401        | Invalid/expired token          |
+| `FORBIDDEN`        | 403        | Not conversation member        |
+| `NOT_FOUND`        | 404        | Conversation or call not found |
+| `VALIDATION_ERROR` | 400        | Invalid payload                |
+| `RATE_LIMITED`     | 429        | Too many messages              |
+| `INTERNAL_ERROR`   | 500        | Unexpected server error        |
+
 
 ---
 
@@ -348,10 +360,12 @@ Response to `ping`.
 
 ## 7. Rate limits
 
-| Action | Limit |
-|--------|-------|
+
+| Action        | Limit           |
+| ------------- | --------------- |
 | `sendMessage` | 30/min per user |
-| `typing` | 60/min per user |
-| `callSignal` | 10/min per user |
+| `typing`      | 60/min per user |
+| `callSignal`  | 10/min per user |
+
 
 Exceeded → `error` event with `RATE_LIMITED`.

@@ -1,9 +1,9 @@
 # Phase 3 — Design
 
 **Project:** AmioChat  
-**Version:** 0.1  
+**Version:** 0.2  
 **Last updated:** 2026-06-16  
-**Status:** Draft — pending review  
+**Status:** Approved — ready for Phase 4 (Implementation)  
 **Prerequisites:** [Phase 1](./phase-1-requirements.md) · [Phase 2](./phase-2-architecture.md)
 
 ---
@@ -14,13 +14,15 @@ Phase 3 turns the architecture into **implementable specifications**: UI layout,
 
 ### Deliverables
 
-| Document | Path | Contents |
-|----------|------|----------|
-| REST API | [design/openapi.yaml](./design/openapi.yaml) | OpenAPI 3.1 — all HTTP endpoints |
+
+| Document           | Path                                                           | Contents                           |
+| ------------------ | -------------------------------------------------------------- | ---------------------------------- |
+| REST API           | [design/openapi.yaml](./design/openapi.yaml)                   | OpenAPI 3.1 — all HTTP endpoints   |
 | WebSocket protocol | [design/websocket-protocol.md](./design/websocket-protocol.md) | Actions, events, errors, reconnect |
-| DynamoDB schema | [design/dynamodb-schema.md](./design/dynamodb-schema.md) | Attributes, indexes, example items |
-| Security model | [design/security-model.md](./design/security-model.md) | Tokens, CORS, IAM, validation |
-| UI wireframes | §2 below | Screen layout and component map |
+| DynamoDB schema    | [design/dynamodb-schema.md](./design/dynamodb-schema.md)       | Attributes, indexes, example items |
+| Security model     | [design/security-model.md](./design/security-model.md)         | Tokens, CORS, IAM, validation      |
+| UI wireframes      | §2 below                                                       | Screen layout and component map    |
+
 
 ---
 
@@ -34,15 +36,17 @@ Phase 3 turns the architecture into **implementable specifications**: UI layout,
 
 ### 2.2 Color & theme (MVP)
 
-| Token | Light mode | Usage |
-|-------|------------|-------|
-| `--bg-app` | `#f0f2f5` | Page background |
-| `--bg-sidebar` | `#ffffff` | Conversation list |
-| `--bg-chat` | `#efeae2` | Chat wallpaper (subtle pattern optional) |
-| `--bubble-sent` | `#d9fdd3` | Outgoing messages |
-| `--bubble-received` | `#ffffff` | Incoming messages |
-| `--accent` | `#00a884` | Primary actions, online indicator |
-| `--text-primary` | `#111b21` | Body text |
+
+| Token               | Light mode | Usage                                    |
+| ------------------- | ---------- | ---------------------------------------- |
+| `--bg-app`          | `#f0f2f5`  | Page background                          |
+| `--bg-sidebar`      | `#ffffff`  | Conversation list                        |
+| `--bg-chat`         | `#efeae2`  | Chat wallpaper (subtle pattern optional) |
+| `--bubble-sent`     | `#d9fdd3`  | Outgoing messages                        |
+| `--bubble-received` | `#ffffff`  | Incoming messages                        |
+| `--accent`          | `#00a884`  | Primary actions, online indicator        |
+| `--text-primary`    | `#111b21`  | Body text                                |
+
 
 Dark mode deferred to v1.x.
 
@@ -72,6 +76,8 @@ flowchart LR
     Thread --> CallOverlay
     Sidebar --> Settings
 ```
+
+
 
 ### 2.4 Chat shell wireframe (desktop)
 
@@ -133,16 +139,18 @@ components/
 
 ### 2.6 Key UI states
 
-| State | Behavior |
-|-------|----------|
-| Empty inbox | Illustration + “Start a new chat” CTA |
-| No conversation selected | “Select a chat to start messaging” in thread panel |
-| Message sending | Optimistic bubble with clock icon; replace with ✓ on ack |
-| Message delivered | Single ✓ |
-| Message read | Double ✓ (blue) |
-| Offline | Banner: “Connecting…”; queue outbound messages |
-| Incoming call | Full-screen overlay with Accept / Decline |
-| Active call | Picture-in-picture local video; mute, camera, end buttons |
+
+| State                    | Behavior                                                  |
+| ------------------------ | --------------------------------------------------------- |
+| Empty inbox              | Illustration + “Start a new chat” CTA                     |
+| No conversation selected | “Select a chat to start messaging” in thread panel        |
+| Message sending          | Optimistic bubble with clock icon; replace with ✓ on ack  |
+| Message delivered        | Single ✓                                                  |
+| Message read             | Double ✓ (blue)                                           |
+| Offline                  | Banner: “Connecting…”; queue outbound messages            |
+| Incoming call            | Full-screen overlay with Accept / Decline                 |
+| Active call              | Picture-in-picture local video; mute, camera, end buttons |
+
 
 ---
 
@@ -150,29 +158,33 @@ components/
 
 ### 3.1 User Pool settings
 
-| Setting | Value |
-|---------|-------|
-| Pool name | `amiochat-users-{env}` |
-| Sign-in aliases | Email only |
-| Username | Email as username |
-| MFA | Off (MVP) |
-| Email verification | Required |
-| Password policy | Min 8 chars; require lowercase, uppercase, number |
-| Account recovery | Email only |
-| Advanced security | Off (MVP); enable for prod hardening later |
+
+| Setting            | Value                                             |
+| ------------------ | ------------------------------------------------- |
+| Pool name          | `amiochat-users-{env}`                            |
+| Sign-in aliases    | Email only                                        |
+| Username           | Email as username                                 |
+| MFA                | Off (MVP)                                         |
+| Email verification | Required                                          |
+| Password policy    | Min 8 chars; require lowercase, uppercase, number |
+| Account recovery   | Email only                                        |
+| Advanced security  | Off (MVP); enable for prod hardening later        |
+
 
 ### 3.2 App Client settings
 
-| Setting | Value |
-|---------|-------|
-| Client name | `amiochat-web-{env}` |
-| Client secret | None (public SPA client) |
-| Auth flows | `ALLOW_USER_PASSWORD_AUTH`, `ALLOW_REFRESH_TOKEN_AUTH` |
-| ID token expiry | 1 hour |
-| Refresh token expiry | 30 days |
-| OAuth | Not used in MVP (direct username/password via Amplify Auth) |
-| Callback URLs | `https://{amplify-domain}/login` (per env) |
-| Logout URLs | `https://{amplify-domain}/login` |
+
+| Setting              | Value                                                       |
+| -------------------- | ----------------------------------------------------------- |
+| Client name          | `amiochat-web-{env}`                                        |
+| Client secret        | None (public SPA client)                                    |
+| Auth flows           | `ALLOW_USER_PASSWORD_AUTH`, `ALLOW_REFRESH_TOKEN_AUTH`      |
+| ID token expiry      | 1 hour                                                      |
+| Refresh token expiry | 30 days                                                     |
+| OAuth                | Not used in MVP (direct username/password via Amplify Auth) |
+| Callback URLs        | `https://{amplify-domain}/login` (per env)                  |
+| Logout URLs          | `https://{amplify-domain}/login`                            |
+
 
 ### 3.3 Post-confirmation Lambda trigger
 
@@ -188,9 +200,11 @@ Action:  Put USER#<sub> / PROFILE { email, displayName, createdAt }
 
 ### 3.4 Custom attributes (optional MVP)
 
-| Attribute | Type | Notes |
-|-----------|------|-------|
+
+| Attribute      | Type   | Notes                                |
+| -------------- | ------ | ------------------------------------ |
 | `display_name` | String | Synced to DynamoDB on profile update |
+
 
 Prefer DynamoDB as source of truth for profile; Cognito stores auth identifiers only.
 
@@ -218,6 +232,8 @@ sequenceDiagram
     C->>C: Merge into local state (dedupe by messageId)
 ```
 
+
+
 ### 4.2 Duplicate browser tabs
 
 - Each tab opens its own WebSocket → separate `CONN#` rows for same `userId`
@@ -243,6 +259,8 @@ sequenceDiagram
     API->>D: Insert system message "Missed video call"
     API->>WS: message.new → both (system message)
 ```
+
+
 
 ### 4.4 Callee offline during call
 
@@ -311,7 +329,7 @@ interface Call {
 Implementation should proceed in this order:
 
 1. **Monorepo scaffold** — `apps/web`, `packages/backend`, `infra/`
-2. **CDK stack** — Cognito, DynamoDB, S3, HTTP API, WebSocket API
+2. **Terraform modules** — Cognito, DynamoDB, S3, HTTP API, WebSocket API
 3. **Auth flows** — register, login, PostConfirmation trigger
 4. **REST APIs** — users, conversations, messages, media
 5. **WebSocket handlers** — connect, sendMessage, typing, read
@@ -323,15 +341,21 @@ Implementation should proceed in this order:
 
 ## 7. Approval
 
-| Role | Name | Date | Sign-off |
-|------|------|------|----------|
-| Product owner | | | ☐ |
-| Tech lead | | | ☐ |
+
+| Role          | Name    | Date       | Sign-off |
+| ------------- | ------- | ---------- | -------- |
+| Product owner | Rishitr | 2026-06-16 | ☑        |
+| Tech lead     | TBD     |            | ☐        |
+
 
 ---
 
 ## Revision history
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 0.1 | 2026-06-16 | SDLC Phase 3 | Initial design package |
+
+| Version | Date       | Author       | Changes                            |
+| ------- | ---------- | ------------ | ---------------------------------- |
+| 0.1     | 2026-06-16 | SDLC Phase 3 | Initial design package             |
+| 0.2     | 2026-06-16 | SDLC Phase 3 | Approved; ready for implementation |
+
+

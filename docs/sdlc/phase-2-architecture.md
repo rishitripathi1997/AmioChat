@@ -1,9 +1,9 @@
 # Phase 2 — Architecture
 
 **Project:** AmioChat  
-**Version:** 0.2  
-**Last updated:** 2026-06-16  
-**Status:** Approved — ready for Phase 3 (Design)  
+**Version:** 0.3  
+**Last updated:** 2026-06-18  
+**Status:** Approved (D3 updated to Terraform)  
 **Prerequisite:** [Phase 1 — Requirements](./phase-1-requirements.md) (approved)
 
 ---
@@ -22,7 +22,7 @@ This document resolves the three open Phase 1 decisions (D1–D3), defines the A
 |----|----------|--------|-----------|
 | **D1** | Real-time transport | **API Gateway WebSockets + Lambda** | Natural fit for bidirectional chat events (messages, typing, presence, call signaling). Full control over routing. Avoids GraphQL/AppSync learning curve for a small team. Scales to 5,000+ connections without redesign. |
 | **D2** | Frontend framework | **Next.js 15 (App Router)** | SSR for auth pages (login, register, reset password). Client-heavy chat shell after login. Strong React ecosystem, easy deploy to Amplify Hosting. Cognito integrates cleanly via `aws-amplify` or `amazon-cognito-identity-js`. |
-| **D3** | Infrastructure as Code | **AWS CDK (TypeScript)** | Same language as frontend and Lambda handlers. Faster iteration for solo/small team. L2 constructs for Cognito, API Gateway, DynamoDB, S3, CloudFront. |
+| **D3** | Infrastructure as Code | **Terraform (HCL)** | Team standard. Declarative IaC with explicit state; portable workflow. App code remains TypeScript; infra in `infra/terraform/`. |
 
 See [§12 ADRs](#12-architecture-decision-records) for full decision records.
 
@@ -117,8 +117,8 @@ flowchart TB
 | **Email** | Amazon SES (via Cognito) | Verification and password-reset emails |
 | **Secrets & config** | SSM Parameter Store | Non-secret config; Secrets Manager for sensitive keys if needed |
 | **Observability** | CloudWatch Logs, Metrics, Alarms | Structured logs, dashboards, alerts (OPS-01, OPS-02) |
-| **IaC** | AWS CDK v2 (TypeScript) | All infrastructure (OPS-03) |
-| **CI/CD** | GitHub Actions → CDK deploy | Phase 6; pipeline stub defined here |
+| **IaC** | Terraform | All infrastructure (OPS-03) — `infra/terraform/` |
+| **CI/CD** | GitHub Actions → Terraform plan/apply | Phase 6; pipeline stub defined here |
 
 ### Not used in MVP (deferred)
 
@@ -380,18 +380,14 @@ sequenceDiagram
 | **staging** | Pre-production, load tests | Same account |
 | **prod** | Beta users | Same account (separate stack); dedicated account optional later |
 
-Each environment deploys a full CDK stack:
+Each environment is a separate Terraform apply with `-var-file`:
 
+```bash
+terraform plan -var-file=environments/staging.tfvars
+terraform apply -var-file=environments/prod.tfvars
 ```
-AmioChatStack-{env}
-├── CognitoUserPool
-├── DynamoDBTable
-├── MediaBucket (+ CORS for presigned upload)
-├── HttpApi + RestLambdas
-├── WebSocketApi + WsLambdas
-├── CloudWatch dashboards + alarms
-└── (Frontend deployed separately via Amplify Hosting per env)
-```
+
+Resources are tagged `Environment`, `Project`, `ManagedBy=Terraform`.
 
 **Region:** `us-east-1` only for MVP (A9).
 
@@ -450,17 +446,30 @@ AmioChatStack-{env}
 
 ### ADR-003: AWS CDK (TypeScript)
 
+**Status:** Superseded by [ADR-004](#adr-004-terraform)
+
+**Context:** Initial MVP choice for TypeScript end-to-end stack.
+
+**Decision (original):** AWS CDK v2 in TypeScript.
+
+**Superseded:** 2026-06-18 — team confirmed Terraform as IaC standard.
+
+---
+
+### ADR-004: Terraform
+
 **Status:** Accepted
 
-**Context:** Need IaC for all AWS resources; small TypeScript team.
+**Context:** Team requires Terraform for infrastructure. CDK scaffold was replaced before Phase 4.2.
 
-**Decision:** AWS CDK v2 in TypeScript, monorepo with `infra/`, `packages/backend/`, `apps/web/`.
+**Decision:** Terraform >= 1.5 with AWS provider ~> 5.0. Modular layout under `infra/terraform/modules/`. Remote state via S3 + DynamoDB lock for staging/prod.
 
 **Consequences:**
-- (+) Type-safe infrastructure; shared types between app and infra
-- (+) Fast iteration with `cdk deploy`
-- (−) CDK synthesis learning curve vs Terraform HCL
-- (−) CloudFormation stack limits (unlikely to hit at MVP)
+- (+) Aligns with team IaC standards and review workflows
+- (+) Explicit `plan` / `apply` and portable HCL
+- (+) Strong ecosystem for multi-environment management
+- (−) Split language stack (HCL infra + TypeScript app)
+- (−) More verbose than CDK for serverless wiring
 
 ---
 
@@ -472,7 +481,8 @@ AmioChat/
 │   └── web/                 # Next.js frontend
 ├── packages/
 │   └── backend/             # Shared Lambda handlers, DDB layer, types
-├── infra/                   # AWS CDK stacks
+├── infra/
+│   └── terraform/           # Terraform modules (team standard)
 ├── docs/
 │   └── sdlc/
 ├── package.json             # npm workspaces root
@@ -542,3 +552,4 @@ Phase 3 (Design) deliverables — see [phase-3-design.md](./phase-3-design.md):
 |---------|------|--------|---------|
 | 0.1 | 2026-06-16 | SDLC Phase 2 | Initial architecture draft |
 | 0.2 | 2026-06-16 | SDLC Phase 2 | Approved; Phase 3 handoff complete |
+| 0.3 | 2026-06-18 | SDLC Phase 2 | D3 changed to Terraform (ADR-004); ADR-003 superseded |

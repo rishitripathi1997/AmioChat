@@ -9,8 +9,8 @@ This folder tracks deliverables across the software development lifecycle for Am
 | ----- | ------------------------ | --------------- | ---------------------------------------------------- |
 | 1     | Discovery & requirements | **Complete**    | [phase-1-requirements.md](./phase-1-requirements.md) |
 | 2     | Architecture             | **Complete**    | [phase-2-architecture.md](./phase-2-architecture.md) |
-| 3     | Design                   | **In progress** | [phase-3-design.md](./phase-3-design.md)             |
-| 4     | Implementation           | Pending         | Frontend, backend, real-time, video                  |
+| 3     | Design                   | **Complete**    | [phase-3-design.md](./phase-3-design.md)             |
+| 4     | Implementation           | **In progress** | [phase-4-implementation.md](./phase-4-implementation.md) |
 | 5     | Testing                  | Pending         | Test strategy and suites                             |
 | 6     | Deployment               | Pending         | CI/CD, IaC, environments                             |
 | 7     | Operations               | Pending         | Monitoring, scaling, runbooks                        |

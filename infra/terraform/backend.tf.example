@@ -1,0 +1,11 @@
+# Copy to backend.tf and configure before using remote state.
+#
+# terraform {
+#   backend "s3" {
+#     bucket         = "amiochat-terraform-state"
+#     key            = "amiochat/terraform.tfstate"
+#     region         = "us-east-1"
+#     dynamodb_table = "amiochat-terraform-locks"
+#     encrypt        = true
+#   }
+# }
