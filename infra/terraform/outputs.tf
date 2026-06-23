@@ -37,3 +37,8 @@ output "websocket_api_url" {
   description = "WebSocket API URL (wss://...)"
   value       = module.websocket_api.api_url
 }
+
+output "ssm_parameter_prefix" {
+  description = "SSM path prefix for app configuration"
+  value       = module.ssm.parameter_prefix
+}

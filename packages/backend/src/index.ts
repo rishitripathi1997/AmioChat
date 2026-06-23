@@ -1,2 +1,6 @@
-/** Backend package — Lambda handlers and DynamoDB access layer (Phase 4.4–4.5). */
-export const BACKEND_VERSION = '0.1.0';
+/** @amiochat/backend — Lambda handlers for REST and WebSocket APIs */
+export { handler as restHandler } from './rest/handler';
+export { handler as wsHandler } from './ws/handler';
+export { handleRestRequest, type RestRequest, type RestResponse } from './rest/router';
+export { seedUserProfile } from './db/memory';
+export { storeUploadedMedia, getUploadedMedia } from './services/media';

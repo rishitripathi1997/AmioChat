@@ -6,6 +6,5 @@
     "module": "CommonJS",
     "moduleResolution": "node"
   },
-  "include": ["src/**/*"],
-  "references": [{ "path": "../shared" }]
+  "include": ["src/**/*"]
 }

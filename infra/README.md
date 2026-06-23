@@ -130,7 +130,23 @@ terraform plan -var-file=environments/staging.tfvars
 | `http_api` | API Gateway HTTP API → REST Lambda |
 | `websocket_api` | WebSocket API ($connect, $disconnect, $default) |
 
-Phase **4.2** hardens this stack: JWT authorizers, real Lambda bundles from `packages/backend`, Chime IAM, SSM outputs for the web app.
+Phase **4.2** complete: JWT authorizers, real Lambda bundles, Chime IAM, SSM parameters. Phase **4.3** adds Cognito PostConfirmation trigger and web auth flows.
+
+## Apply (includes Lambda build)
+
+Terraform runs `npm run build:backend` automatically before packaging Lambdas.
+
+```bash
+cd infra/terraform
+terraform plan    # builds backend + shows changes
+terraform apply
+```
+
+After apply, read config from SSM:
+
+```bash
+aws ssm get-parameters-by-path --path /amiochat/dev --recursive --profile amiochat-personal
+```
 
 ## Related docs
 

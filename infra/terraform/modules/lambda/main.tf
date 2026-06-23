@@ -1,10 +1,38 @@
-data "archive_file" "placeholder" {
-  type        = "zip"
-  output_path = "${path.module}/placeholder.zip"
+resource "null_resource" "build_backend" {
+  triggers = {
+    rest_hash = filemd5("${var.backend_source_root}/packages/backend/src/rest/handler.ts")
+    ws_hash   = filemd5("${var.backend_source_root}/packages/backend/src/ws/handler.ts")
+  }
 
-  source {
-    content  = "exports.handler = async () => ({ statusCode: 200, body: JSON.stringify({ ok: true }) });"
-    filename = "index.js"
+  provisioner "local-exec" {
+    command     = "npm run build:backend"
+    working_dir = var.backend_source_root
+  }
+}
+
+data "archive_file" "rest" {
+  depends_on = [null_resource.build_backend]
+
+  type        = "zip"
+  source_file = "${var.backend_source_root}/packages/backend/dist/rest/index.js"
+  output_path = "${path.module}/rest.zip"
+}
+
+data "archive_file" "ws" {
+  depends_on = [null_resource.build_backend]
+
+  type        = "zip"
+  source_file = "${var.backend_source_root}/packages/backend/dist/ws/index.js"
+  output_path = "${path.module}/ws.zip"
+}
+
+locals {
+  lambda_env = {
+    ENVIRONMENT         = var.environment
+    DYNAMODB_TABLE_NAME = var.dynamodb_table_name
+    MEDIA_BUCKET_NAME   = var.media_bucket_name
+    COGNITO_USER_POOL_ID = var.cognito_user_pool_id
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED = "1"
   }
 }
 
@@ -34,14 +62,34 @@ resource "aws_iam_role_policy" "lambda_data" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query", "dynamodb:TransactWriteItems"]
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+          "dynamodb:TransactWriteItems",
+          "dynamodb:DeleteItem"
+        ]
         Resource = [var.dynamodb_table_arn, "${var.dynamodb_table_arn}/index/*"]
       },
       {
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:PutObject"]
         Resource = ["${var.media_bucket_arn}/*"]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "chime:CreateMeeting",
+          "chime:DeleteMeeting",
+          "chime:GetMeeting",
+          "chime:CreateAttendee",
+          "chime:DeleteAttendee",
+          "chime:GetAttendee",
+          "chime:ListAttendees"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -55,8 +103,12 @@ resource "aws_lambda_function" "rest" {
   timeout       = 30
   memory_size   = 256
 
-  filename         = data.archive_file.placeholder.output_path
-  source_code_hash = data.archive_file.placeholder.output_base64sha256
+  filename         = data.archive_file.rest.output_path
+  source_code_hash = data.archive_file.rest.output_base64sha256
+
+  environment {
+    variables = local.lambda_env
+  }
 }
 
 resource "aws_lambda_function" "ws" {
@@ -67,6 +119,10 @@ resource "aws_lambda_function" "ws" {
   timeout       = 30
   memory_size   = 256
 
-  filename         = data.archive_file.placeholder.output_path
-  source_code_hash = data.archive_file.placeholder.output_base64sha256
+  filename         = data.archive_file.ws.output_path
+  source_code_hash = data.archive_file.ws.output_base64sha256
+
+  environment {
+    variables = local.lambda_env
+  }
 }

@@ -14,11 +14,11 @@
 |------|------|--------|
 | 4.1 | Monorepo scaffold (`apps/web`, `packages/backend`, `packages/shared`) | **Complete** |
 | 4.1b | Terraform scaffold (`infra/terraform/` + modules) | **Complete** |
-| 4.2 | Terraform — harden modules (JWT authorizer, real Lambda bundles, Chime, outputs to SSM) | **Next** |
-| 4.3 | Auth flows — register, login, PostConfirmation trigger | Pending |
-| 4.4 | REST APIs — users, conversations, messages, media | Pending |
-| 4.5 | WebSocket handlers — connect, sendMessage, typing, read | Pending |
-| 4.6 | Chat UI — sidebar, thread, composer | Pending |
+| 4.2 | Terraform — JWT authorizers, real Lambda bundles, Chime IAM, SSM outputs | **Complete** |
+| 4.3 | Auth flows — register, login, PostConfirmation trigger (local mock + Cognito-ready) | **Complete** |
+| 4.4 | REST APIs — users, conversations, messages, media | **Complete** |
+| 4.5 | WebSocket handlers — connect, sendMessage, typing, read | **Complete** |
+| 4.6 | Chat UI — sidebar, thread, composer | **Next** |
 | 4.7 | Chime integration — call create/join, CallOverlay | Pending |
 | 4.8 | Polish — notifications, error states, reconnect | Pending |
 
@@ -64,7 +64,63 @@ terraform plan
 terraform apply
 ```
 
-Baseline modules provision Cognito, DynamoDB, S3, placeholder Lambdas, HTTP API, and WebSocket API. Phase 4.2 replaces placeholders with real handler code and adds authorizers, IAM fine-tuning, and SSM outputs for the web app.
+Baseline modules provision Cognito, DynamoDB, S3, Lambda, HTTP API, and WebSocket API.
+
+### Phase 4.2 deliverables (complete)
+
+| Item | Implementation |
+|------|----------------|
+| Lambda bundles | `packages/backend` REST + WS handlers, esbuild → `dist/`, auto-build on `terraform apply` |
+| JWT authorizer (HTTP) | Cognito JWT on `$default`; public `GET /health` |
+| JWT authorizer (WS) | Cognito JWT on `$connect` via `?token=` query param |
+| Chime IAM | `chime:*Meeting`, `chime:*Attendee` on Lambda role |
+| WS fan-out IAM | `execute-api:ManageConnections` on WebSocket API |
+| SSM parameters | `/amiochat/{env}/*` — Cognito, API URLs, DynamoDB, S3 |
+| CORS | HTTP API allows `web_app_origins` (default `localhost:3000`) |
+
+### Phase 4.3 deliverables (complete)
+
+Local mock auth + Cognito-ready UI at `/login`, `/register`, `/confirm`, `/forgot-password`, `/chat`.
+
+### Phase 4.4 deliverables (complete)
+
+| Item | Implementation |
+|------|----------------|
+| REST router | `packages/backend/src/rest/router.ts` — shared by Lambda + Next.js |
+| Data layer | `MemoryRepository` for local dev; DynamoDB stub deferred |
+| Endpoints | `GET/PATCH /users/me`, `GET /users/search`, `GET/POST /conversations`, `GET /conversations/{id}/messages`, `POST /media/upload-url`, `POST /media/download-url` |
+| Calls | `501` stub — deferred to Phase 4.7 |
+| Local API | `apps/web/src/app/api/v1/[...path]/route.ts` proxies to shared router |
+| Mock media | `PUT /api/media/upload`, `GET /api/media/download` |
+| Frontend client | `apps/web/src/lib/api/client.ts` |
+| Chat demo | `/chat` — profile, user search, start conversation |
+
+```bash
+# After sign-in, REST APIs are available at:
+curl -H "Authorization: Bearer <idToken>" http://localhost:3000/api/v1/users/me
+```
+
+### Phase 4.5 deliverables (complete)
+
+| Item | Implementation |
+|------|----------------|
+| WS router | `packages/backend/src/ws/router.ts` — sendMessage, typing, read, presence, ping |
+| Connections | In-memory connection store; presence online/offline on connect/disconnect |
+| Lambda handler | `$connect`, `$disconnect`, default route with action dispatch |
+| Local WS server | `npm run dev:ws` → `ws://localhost:3002?token=<idToken>` |
+| Rate limits | 30 sendMessage/min, 60 typing/min per user |
+| Frontend hook | `apps/web/src/lib/ws/client.ts` |
+| Chat demo | `/chat` — live messaging when WS server is running |
+
+```bash
+# Terminal 1
+npm run dev
+
+# Terminal 2
+npm run dev:ws
+```
+
+`callSignal` returns `NOT_IMPLEMENTED` until Phase 4.7.
 
 ---
 
@@ -74,3 +130,7 @@ Baseline modules provision Cognito, DynamoDB, S3, placeholder Lambdas, HTTP API,
 |---------|------|--------|---------|
 | 0.1 | 2026-06-16 | SDLC Phase 4 | Implementation tracker started |
 | 0.3 | 2026-06-22 | SDLC Phase 4 | Terraform validated; CDK removed; ready for Phase 4.2 |
+| 0.4 | 2026-06-22 | SDLC Phase 4 | Phase 4.2: JWT auth, Lambda bundles, Chime IAM, SSM |
+| 0.5 | 2026-06-22 | SDLC Phase 4 | Phase 4.3: local mock auth UI + Cognito-ready + PostConfirmation handler |
+| 0.6 | 2026-06-16 | SDLC Phase 4 | Phase 4.4: REST APIs with memory repo + local Next.js proxy |
+| 0.7 | 2026-06-16 | SDLC Phase 4 | Phase 4.5: WebSocket handlers + local WS dev server |

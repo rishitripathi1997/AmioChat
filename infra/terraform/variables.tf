@@ -25,3 +25,9 @@ variable "project_name" {
   type        = string
   default     = "amiochat"
 }
+
+variable "web_app_origins" {
+  description = "Allowed CORS origins for the HTTP API"
+  type        = list(string)
+  default     = ["http://localhost:3000"]
+}

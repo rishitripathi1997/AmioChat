@@ -8,7 +8,9 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace @amiochat/web",
+    "dev:ws": "npm run dev:ws --workspace @amiochat/backend",
     "build": "npm run build --workspaces --if-present",
+    "build:backend": "npm run build --workspace @amiochat/backend",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

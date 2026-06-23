@@ -35,9 +35,14 @@ SDLC **Phase 4 (Implementation)** in progress. Phases 1–3 complete. See [docs/
 # Install all workspace dependencies
 npm install
 
+# Copy env (mock auth works without AWS)
+cp apps/web/.env.example apps/web/.env.local
+
 # Run the web app (localhost:3000)
 npm run dev
 ```
+
+See [phase-4-local-dev.md](./docs/sdlc/phase-4-local-dev.md) for mock auth instructions (code **123456**).
 
 Monorepo layout: `apps/web` (Next.js), `packages/shared`, `packages/backend`, `infra/terraform/` (Terraform).
 

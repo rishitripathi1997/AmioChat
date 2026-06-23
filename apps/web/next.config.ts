@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  transpilePackages: ['@amiochat/backend', '@amiochat/shared'],
 };
 
 export default nextConfig;
