@@ -1,4 +1,12 @@
-import type { Conversation, Message, User, UserPublic } from '@amiochat/shared';
+import type {
+  CallSessionResponse,
+  CallType,
+  ChimeAttendeeInfo,
+  Conversation,
+  Message,
+  User,
+  UserPublic,
+} from '@amiochat/shared';
 
 const API_BASE = '/api/v1';
 
@@ -115,4 +123,25 @@ export function createDownloadUrl(idToken: string, mediaKey: string) {
 
 export function getHealth() {
   return fetch(`${API_BASE}/health`).then((r) => r.json());
+}
+
+export function createCall(idToken: string, convId: string, type: CallType) {
+  return request<CallSessionResponse>('/calls', idToken, {
+    method: 'POST',
+    body: JSON.stringify({ convId, type }),
+  });
+}
+
+export function joinCall(idToken: string, callId: string) {
+  return request<ChimeAttendeeInfo & { chimeMeeting: CallSessionResponse['chimeMeeting'] }>(
+    `/calls/${encodeURIComponent(callId)}/join`,
+    idToken,
+    { method: 'POST', body: '{}' },
+  );
+}
+
+export function endCall(idToken: string, callId: string) {
+  return request<void>(`/calls/${encodeURIComponent(callId)}`, idToken, {
+    method: 'DELETE',
+  });
 }

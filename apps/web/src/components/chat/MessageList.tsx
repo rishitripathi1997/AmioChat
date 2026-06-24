@@ -50,7 +50,11 @@ export function MessageList() {
                     </span>
                   </div>
                 )}
-                <MessageBubble message={msg} isOwn={msg.senderId === user?.userId} />
+                <MessageBubble
+                  message={msg}
+                  isOwn={msg.senderId === user?.userId}
+                  isSystem={'type' in msg && msg.type === 'system'}
+                />
               </div>
             );
           })}

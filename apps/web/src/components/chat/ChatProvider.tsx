@@ -12,18 +12,40 @@ import {
 import { useAuth } from '@/components/auth/AuthProvider';
 import {
   createConversation,
+  createCall,
+  endCall as endCallApi,
+  joinCall,
   listConversations,
   listMessages,
   searchUsers,
 } from '@/lib/api/client';
 import type { PendingMessage } from '@/lib/chat/utils';
+import { createMeetingController, type MeetingController } from '@/lib/chime/meeting';
 import { useWsClient, type WsConnectionState } from '@/lib/ws/client';
-import type { Conversation, Message, UserPublic, WsServerEnvelope } from '@amiochat/shared';
+import type {
+  CallType,
+  Conversation,
+  IncomingCallPayload,
+  Message,
+  UserPublic,
+  WsServerEnvelope,
+} from '@amiochat/shared';
+import { isMockChimeMeeting } from '@amiochat/shared';
 
 interface QueuedOutbound {
   clientMsgId: string;
   convId: string;
   body: string;
+}
+
+interface ActiveCallState {
+  callId: string;
+  convId: string;
+  type: CallType;
+  remoteName: string;
+  status: 'ringing' | 'connected';
+  role: 'caller' | 'callee';
+  isMock: boolean;
 }
 
 interface ChatContextValue {
@@ -45,6 +67,16 @@ interface ChatContextValue {
   startConversation: (participantId: string) => Promise<void>;
   showSidebarOnMobile: boolean;
   setShowSidebarOnMobile: (show: boolean) => void;
+  incomingCall: IncomingCallPayload | null;
+  activeCall: ActiveCallState | null;
+  startCall: (type: CallType) => Promise<void>;
+  acceptCall: () => Promise<void>;
+  declineCall: () => Promise<void>;
+  endCall: () => Promise<void>;
+  toggleMute: () => void;
+  toggleVideo: () => void;
+  callMuted: boolean;
+  callVideoEnabled: boolean;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -60,6 +92,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [showSidebarOnMobile, setShowSidebarOnMobile] = useState(true);
   const [outboundQueue, setOutboundQueue] = useState<QueuedOutbound[]>([]);
+  const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(null);
+  const [activeCall, setActiveCall] = useState<ActiveCallState | null>(null);
+  const [callMuted, setCallMuted] = useState(false);
+  const [callVideoEnabled, setCallVideoEnabled] = useState(false);
+
+  const meetingControllerRef = useRef<MeetingController | null>(null);
+  const sessionRef = useRef<Awaited<ReturnType<typeof createCall>> | null>(null);
 
   const selectedConvIdRef = useRef(selectedConvId);
   const lastMessageAtRef = useRef<string | null>(null);
@@ -121,6 +160,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   );
 
   const wsSendRef = useRef<((envelope: import('@amiochat/shared').WsClientEnvelope) => boolean) | null>(null);
+
+  const cleanupCall = useCallback(async () => {
+    await meetingControllerRef.current?.leave();
+    meetingControllerRef.current = null;
+    sessionRef.current = null;
+    setActiveCall(null);
+    setIncomingCall(null);
+    setCallMuted(false);
+    setCallVideoEnabled(false);
+    await refreshInbox();
+    const convId = selectedConvIdRef.current;
+    if (convId) {
+      await loadMessagesForConv(convId);
+    }
+  }, [loadMessagesForConv, refreshInbox]);
 
   const handleWsEvent = useCallback(
     (event: WsServerEnvelope) => {
@@ -211,8 +265,27 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           });
         }
       }
+
+      if (event.event === 'call.incoming') {
+        const payload = event.payload as IncomingCallPayload;
+        setIncomingCall(payload);
+      }
+
+      if (event.event === 'call.updated') {
+        const payload = event.payload as { callId: string; status: string };
+        if (payload.status === 'connected') {
+          setActiveCall((prev) =>
+            prev && prev.callId === payload.callId
+              ? { ...prev, status: 'connected' }
+              : prev,
+          );
+        }
+        if (['ended', 'declined', 'missed'].includes(payload.status)) {
+          void cleanupCall();
+        }
+      }
     },
-    [loadMessagesForConv, markRead, refreshInbox, user?.userId],
+    [cleanupCall, loadMessagesForConv, markRead, refreshInbox, user?.userId],
   );
 
   const handleReconnect = useCallback(async () => {
@@ -374,6 +447,103 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [idToken, refreshInbox],
   );
 
+  const startCall = useCallback(
+    async (type: CallType) => {
+      if (!idToken || !selectedConv) return;
+      const session = await createCall(idToken, selectedConv.convId, type);
+      sessionRef.current = session;
+
+      setActiveCall({
+        callId: session.callId,
+        convId: session.convId,
+        type: session.type,
+        remoteName: selectedConv.participant.displayName,
+        status: 'ringing',
+        role: 'caller',
+        isMock: isMockChimeMeeting(session.chimeMeeting.meetingId),
+      });
+      setCallVideoEnabled(type === 'video');
+
+      const controller = await createMeetingController(
+        session.chimeMeeting,
+        session.attendee,
+        type === 'video',
+      );
+      meetingControllerRef.current = controller;
+      await controller.join();
+    },
+    [idToken, selectedConv],
+  );
+
+  const acceptCall = useCallback(async () => {
+    if (!idToken || !incomingCall) return;
+
+    wsSend({
+      action: 'callSignal',
+      payload: { callId: incomingCall.callId, signal: 'accept' },
+    });
+
+    const joined = await joinCall(idToken, incomingCall.callId);
+
+    setActiveCall({
+      callId: incomingCall.callId,
+      convId: incomingCall.convId,
+      type: incomingCall.type,
+      remoteName: incomingCall.callerName,
+      status: 'connected',
+      role: 'callee',
+      isMock: isMockChimeMeeting(joined.chimeMeeting.meetingId),
+    });
+    setIncomingCall(null);
+    setCallVideoEnabled(incomingCall.type === 'video');
+
+    const controller = await createMeetingController(
+      joined.chimeMeeting,
+      {
+        attendeeId: joined.attendeeId,
+        joinToken: joined.joinToken,
+        externalUserId: joined.externalUserId,
+      },
+      incomingCall.type === 'video',
+    );
+    meetingControllerRef.current = controller;
+    await controller.join();
+  }, [idToken, incomingCall, wsSend]);
+
+  const declineCall = useCallback(async () => {
+    if (!incomingCall) return;
+    wsSend({
+      action: 'callSignal',
+      payload: { callId: incomingCall.callId, signal: 'decline' },
+    });
+    setIncomingCall(null);
+  }, [incomingCall, wsSend]);
+
+  const endCall = useCallback(async () => {
+    if (!idToken || !activeCall) return;
+    try {
+      await endCallApi(idToken, activeCall.callId);
+    } finally {
+      wsSend({
+        action: 'callSignal',
+        payload: { callId: activeCall.callId, signal: 'end' },
+      });
+      await cleanupCall();
+    }
+  }, [activeCall, cleanupCall, idToken, wsSend]);
+
+  const toggleMute = useCallback(() => {
+    const controller = meetingControllerRef.current;
+    if (!controller) return;
+    setCallMuted(controller.toggleMute());
+  }, []);
+
+  const toggleVideo = useCallback(() => {
+    const controller = meetingControllerRef.current;
+    if (!controller) return;
+    setCallVideoEnabled(controller.toggleVideo());
+  }, []);
+
   const filteredConversations = useMemo(() => {
     const q = sidebarSearch.trim().toLowerCase();
     if (!q) return conversations;
@@ -404,6 +574,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     startConversation,
     showSidebarOnMobile,
     setShowSidebarOnMobile,
+    incomingCall,
+    activeCall,
+    startCall,
+    acceptCall,
+    declineCall,
+    endCall,
+    toggleMute,
+    toggleVideo,
+    callMuted,
+    callVideoEnabled,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

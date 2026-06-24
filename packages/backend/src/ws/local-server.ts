@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage } from 'node:http';
 import { WebSocketServer, WebSocket, type WebSocket as WsSocket } from 'ws';
 import type { WsClientEnvelope, WsServerEnvelope } from '@amiochat/shared';
 import { parseToken } from '../lib/auth';
+import { setCallEventPublisher } from './call-events';
 import { getConnectionRepository } from './connections';
 import type { WsPublisher } from './publisher';
 import {
@@ -35,7 +36,31 @@ function parseTokenFromRequest(req: IncomingMessage): string | null {
 
 export function startLocalWsServer(port = 3002): void {
   const publisher = new LocalWsPublisher();
-  const server = createServer((_req, res) => {
+  setCallEventPublisher(publisher);
+
+  const server = createServer((req, res) => {
+    if (req.method === 'POST' && req.url === '/internal/publish') {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk) => chunks.push(chunk as Buffer));
+      req.on('end', () => {
+        void (async () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as {
+              userId: string;
+              event: WsServerEnvelope;
+            };
+            await publisher.sendToUser(body.userId, body.event);
+            res.writeHead(204);
+            res.end();
+          } catch {
+            res.writeHead(400);
+            res.end('Bad Request');
+          }
+        })();
+      });
+      return;
+    }
+
     res.writeHead(426);
     res.end('Upgrade Required');
   });
@@ -93,6 +118,7 @@ export function startLocalWsServer(port = 3002): void {
 
   server.listen(port, () => {
     console.log(`AmioChat local WebSocket server listening on ws://localhost:${port}`);
+    console.log(`Call event bridge: POST http://localhost:${port}/internal/publish`);
   });
 }
 

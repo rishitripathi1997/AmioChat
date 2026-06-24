@@ -21,6 +21,9 @@ async function proxy(request: NextRequest, segments: string[] | undefined) {
       : await request.text();
 
   const origin = url.origin;
+  if (!process.env.CALL_NOTIFY_URL) {
+    process.env.CALL_NOTIFY_URL = 'http://127.0.0.1:3002/internal/publish';
+  }
   const result = await handleRestRequest(
     {
       method: request.method,

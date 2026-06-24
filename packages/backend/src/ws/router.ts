@@ -5,6 +5,7 @@ import type {
 import { otherParticipant } from '@amiochat/shared';
 import { getRepository } from '../db';
 import type { AuthContext } from '../lib/auth';
+import * as callService from '../services/calls';
 import { getConnectionRepository } from './connections';
 import type { WsPublisher } from './publisher';
 import { checkRateLimit } from './rate-limit';
@@ -131,13 +132,11 @@ export async function handleWsAction(
         return handlePresence(ctx, payload as Parameters<typeof handlePresence>[1], requestId);
 
       case 'callSignal':
-        return [
-          errorEvent(
-            'NOT_IMPLEMENTED',
-            'callSignal is deferred to Phase 4.7',
-            requestId,
-          ),
-        ];
+        return handleCallSignal(
+          ctx,
+          payload as { callId?: string; signal?: string },
+          requestId,
+        );
 
       default:
         return [errorEvent('VALIDATION_ERROR', `Unknown action: ${action}`, requestId)];
@@ -284,6 +283,28 @@ async function handlePresence(
     });
   }
 
+  return [];
+}
+
+async function handleCallSignal(
+  ctx: WsHandlerContext,
+  payload: { callId?: string; signal?: string },
+  requestId?: string,
+): Promise<WsServerEnvelope[]> {
+  if (!payload.callId || !payload.signal) {
+    return [errorEvent('VALIDATION_ERROR', 'callId and signal are required', requestId)];
+  }
+
+  const valid = ['accept', 'decline', 'end', 'busy'];
+  if (!valid.includes(payload.signal)) {
+    return [errorEvent('VALIDATION_ERROR', 'Invalid call signal', requestId)];
+  }
+
+  await callService.handleCallSignal(
+    ctx.auth,
+    payload.callId,
+    payload.signal as 'accept' | 'decline' | 'end' | 'busy',
+  );
   return [];
 }
 

@@ -1,4 +1,6 @@
 import type {
+  CallStatus,
+  CallType,
   Conversation,
   Message,
   MessageType,
@@ -6,6 +8,7 @@ import type {
   User,
   UserPublic,
 } from '@amiochat/shared';
+import type { ChimeAttendeeInfo } from '../chime/types';
 
 export interface SendMessageInput {
   convId: string;
@@ -26,6 +29,31 @@ export interface MarkReadResult {
   userId: string;
   messageId: string;
   readAt: string;
+}
+
+export interface StoredCall {
+  callId: string;
+  convId: string;
+  callerId: string;
+  calleeId: string;
+  type: CallType;
+  status: CallStatus;
+  chimeMeetingId: string;
+  mediaRegion: string;
+  externalMeetingId: string;
+  attendees: Record<string, ChimeAttendeeInfo>;
+  createdAt: string;
+}
+
+export interface CreateCallRecordInput {
+  convId: string;
+  callerId: string;
+  calleeId: string;
+  type: CallType;
+  chimeMeetingId: string;
+  mediaRegion: string;
+  externalMeetingId: string;
+  callerAttendee: ChimeAttendeeInfo;
 }
 
 export interface UserProfile extends User {
@@ -86,4 +114,11 @@ export interface DataRepository {
   sendMessage(input: SendMessageInput): Promise<SendMessageResult>;
   markRead(userId: string, convId: string, messageId: string): Promise<MarkReadResult>;
   updatePresence(userId: string, status: PresenceStatus): Promise<void>;
+  getCall(callId: string): Promise<StoredCall | null>;
+  getUserActiveCall(userId: string): Promise<StoredCall | null>;
+  createCallRecord(input: CreateCallRecordInput): Promise<StoredCall>;
+  updateCallStatus(callId: string, status: CallStatus): Promise<StoredCall>;
+  saveCallAttendee(callId: string, userId: string, attendee: ChimeAttendeeInfo): Promise<StoredCall>;
+  addSystemMessage(convId: string, body: string): Promise<Message>;
+  finalizeCall(callId: string, systemMessage: string): Promise<StoredCall>;
 }

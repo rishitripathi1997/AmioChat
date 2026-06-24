@@ -1,3 +1,4 @@
+import type { CallType } from '@amiochat/shared';
 import type { AuthContext } from '../lib/auth';
 import { parseApiGatewayAuth, parseBearerToken } from '../lib/auth';
 import {
@@ -8,6 +9,7 @@ import {
   unauthorized,
   type RestResponse,
 } from '../lib/response';
+import * as calls from '../services/calls';
 import * as conversations from '../services/conversations';
 import * as media from '../services/media';
 import * as messages from '../services/messages';
@@ -57,6 +59,12 @@ function mapError(error: unknown): RestResponse {
       return forbidden('Not a conversation member');
     case 'NOT_FOUND':
       return notFound('Resource not found');
+    case 'CALL_IN_PROGRESS':
+      return json(409, { code: 'CALL_IN_PROGRESS', message: 'You are already in a call' });
+    case 'CALLEE_BUSY':
+      return json(409, { code: 'CALLEE_BUSY', message: 'User is already in a call' });
+    case 'CALL_ENDED':
+      return json(410, { code: 'CALL_ENDED', message: 'Call has already ended' });
     default:
       if (message === 'Cannot create conversation with yourself') {
         return badRequest(message, 'VALIDATION_ERROR');
@@ -65,11 +73,8 @@ function mapError(error: unknown): RestResponse {
   }
 }
 
-function callsNotImplemented(method: string, path: string): RestResponse {
-  return json(501, {
-    code: 'NOT_IMPLEMENTED',
-    message: `${method} ${path} is deferred to Phase 4.7 (Chime integration)`,
-  });
+function emptyResponse(statusCode: number): RestResponse {
+  return { statusCode, headers: {}, body: '' };
 }
 
 export async function handleRestRequest(
@@ -183,8 +188,30 @@ export async function handleRestRequest(
       return json(200, result);
     }
 
-    if (path.startsWith('/calls')) {
-      return callsNotImplemented(method, path);
+    if (method === 'POST' && path === '/calls') {
+      const input = parseBody<{ convId?: string; type?: CallType }>(body);
+      if (!input?.convId || !input.type) {
+        return badRequest('convId and type are required');
+      }
+      if (input.type !== 'voice' && input.type !== 'video') {
+        return badRequest('type must be voice or video');
+      }
+      const session = await calls.createCall(auth, input.convId, input.type);
+      return json(201, session);
+    }
+
+    const joinMatch = path.match(/^\/calls\/([^/]+)\/join$/);
+    if (joinMatch && method === 'POST') {
+      const callId = decodeURIComponent(joinMatch[1]);
+      const attendee = await calls.joinCall(auth, callId);
+      return json(200, attendee);
+    }
+
+    const callMatch = path.match(/^\/calls\/([^/]+)$/);
+    if (callMatch && method === 'DELETE') {
+      const callId = decodeURIComponent(callMatch[1]);
+      await calls.endCall(auth, callId);
+      return emptyResponse(204);
     }
 
     return notFound(`Route not found: ${method} ${path}`);

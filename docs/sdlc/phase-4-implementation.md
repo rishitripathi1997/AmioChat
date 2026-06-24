@@ -19,8 +19,8 @@
 | 4.4 | REST APIs — users, conversations, messages, media | **Complete** |
 | 4.5 | WebSocket handlers — connect, sendMessage, typing, read | **Complete** |
 | 4.6 | Chat UI — sidebar, thread, composer | **Complete** |
-| 4.7 | Chime integration — call create/join, CallOverlay | **Next** |
-| 4.8 | Polish — notifications, error states, reconnect | Pending |
+| 4.7 | Chime integration — call create/join, CallOverlay | **Complete** |
+| 4.8 | Polish — notifications, error states, reconnect | **Next** |
 
 ---
 
@@ -135,6 +135,26 @@ npm run dev:ws
 
 Call buttons and file attachments are stubbed until Phase 4.7+.
 
+### Phase 4.7 deliverables (complete)
+
+| Item | Implementation |
+|------|----------------|
+| REST `/calls` | POST create, POST join, DELETE end |
+| Chime layer | Mock client (local) + AWS SDK client (deployed) |
+| WS signaling | `callSignal` accept/decline/end/busy; `call.incoming`, `call.updated` events |
+| Call store | In-memory call records, busy detection, 30s ring timeout |
+| Local bridge | `POST http://localhost:3002/internal/publish` fans out call events to WS clients |
+| Frontend | `CallOverlay`, voice/video buttons in header, `amazon-chime-sdk-js` (real) + mock mode |
+| System messages | Call ended/declined/missed appear in thread |
+
+```bash
+# Required for incoming call notifications in local dev:
+npm run dev      # Terminal 1
+npm run dev:ws   # Terminal 2 (includes call event bridge)
+```
+
+Set `USE_MOCK_CHIME=false` and `CHIME_MEDIA_REGION=us-east-1` after Terraform apply for real Chime meetings.
+
 ---
 
 ## Revision history
@@ -148,3 +168,4 @@ Call buttons and file attachments are stubbed until Phase 4.7+.
 | 0.6 | 2026-06-16 | SDLC Phase 4 | Phase 4.4: REST APIs with memory repo + local Next.js proxy |
 | 0.7 | 2026-06-16 | SDLC Phase 4 | Phase 4.5: WebSocket handlers + local WS dev server |
 | 0.8 | 2026-06-16 | SDLC Phase 4 | Phase 4.6: WhatsApp-style chat UI shell |
+| 0.9 | 2026-06-16 | SDLC Phase 4 | Phase 4.7: Chime calls REST + WS + CallOverlay |

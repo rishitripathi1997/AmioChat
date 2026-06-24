@@ -1,14 +1,17 @@
 import { directConvId, type Conversation, type Message, type UserPublic } from '@amiochat/shared';
 import type {
   CreateConversationResult,
+  CreateCallRecordInput,
   DataRepository,
   ListMessagesResult,
   MarkReadResult,
   SendMessageInput,
   SendMessageResult,
+  StoredCall,
   UserProfile,
 } from './types';
-import type { PresenceStatus } from '@amiochat/shared';
+import type { CallStatus, PresenceStatus } from '@amiochat/shared';
+import type { ChimeAttendeeInfo } from '../chime/types';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -22,6 +25,9 @@ function getGlobalStore() {
       messages: Map<string, Message[]>;
       media: Map<string, { data: Buffer; contentType: string }>;
       clientMsgIds: Map<string, string>;
+      calls: Map<string, StoredCall>;
+      userActiveCall: Map<string, string>;
+      ringTimers: Map<string, ReturnType<typeof setTimeout>>;
     };
   };
   if (!g.__amiochatDb) {
@@ -31,6 +37,9 @@ function getGlobalStore() {
       messages: new Map(),
       media: new Map(),
       clientMsgIds: new Map(),
+      calls: new Map(),
+      userActiveCall: new Map(),
+      ringTimers: new Map(),
     };
   }
   return g.__amiochatDb;
@@ -305,6 +314,130 @@ export class MemoryRepository implements DataRepository {
       profile.lastSeenAt = nowIso();
     }
     await this.putUserProfile(profile);
+  }
+
+  async getCall(callId: string): Promise<StoredCall | null> {
+    return this.store.calls.get(callId) ?? null;
+  }
+
+  async getUserActiveCall(userId: string): Promise<StoredCall | null> {
+    const callId = this.store.userActiveCall.get(userId);
+    if (!callId) return null;
+    return this.store.calls.get(callId) ?? null;
+  }
+
+  async createCallRecord(input: CreateCallRecordInput): Promise<StoredCall> {
+    const callId = crypto.randomUUID();
+    const record: StoredCall = {
+      callId,
+      convId: input.convId,
+      callerId: input.callerId,
+      calleeId: input.calleeId,
+      type: input.type,
+      status: 'ringing',
+      chimeMeetingId: input.chimeMeetingId,
+      mediaRegion: input.mediaRegion,
+      externalMeetingId: input.externalMeetingId,
+      attendees: { [input.callerId]: input.callerAttendee },
+      createdAt: nowIso(),
+    };
+
+    this.store.calls.set(callId, record);
+    this.store.userActiveCall.set(input.callerId, callId);
+    this.store.userActiveCall.set(input.calleeId, callId);
+
+    return record;
+  }
+
+  async updateCallStatus(callId: string, status: CallStatus): Promise<StoredCall> {
+    const call = this.store.calls.get(callId);
+    if (!call) throw new Error('NOT_FOUND');
+    call.status = status;
+
+    if (status === 'ended' || status === 'declined' || status === 'missed') {
+      this.clearCallActive(call);
+    }
+
+    this.store.calls.set(callId, { ...call });
+    return call;
+  }
+
+  async saveCallAttendee(
+    callId: string,
+    userId: string,
+    attendee: ChimeAttendeeInfo,
+  ): Promise<StoredCall> {
+    const call = this.store.calls.get(callId);
+    if (!call) throw new Error('NOT_FOUND');
+    call.attendees[userId] = attendee;
+    if (call.status === 'ringing') {
+      call.status = 'connected';
+    }
+    this.store.calls.set(callId, { ...call });
+    return call;
+  }
+
+  async addSystemMessage(convId: string, body: string): Promise<Message> {
+    const createdAt = nowIso();
+    const message: Message = {
+      messageId: crypto.randomUUID(),
+      convId,
+      senderId: 'system',
+      type: 'system',
+      body,
+      status: 'delivered',
+      createdAt,
+    };
+
+    const messages = this.store.messages.get(convId) ?? [];
+    messages.push(message);
+    this.store.messages.set(convId, messages);
+
+    for (const [key, conv] of this.store.inbox.entries()) {
+      if (!key.endsWith(`#${convId}`)) continue;
+      conv.lastMessageAt = createdAt;
+      conv.lastMessagePreview = body.slice(0, 100);
+      conv.unreadCount += 1;
+      this.store.inbox.set(key, { ...conv });
+    }
+
+    return message;
+  }
+
+  scheduleRingTimeout(callId: string, onMissed: () => void): void {
+    const existing = this.store.ringTimers.get(callId);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(() => {
+      this.store.ringTimers.delete(callId);
+      onMissed();
+    }, 30_000);
+
+    this.store.ringTimers.set(callId, timer);
+  }
+
+  clearRingTimeout(callId: string): void {
+    const timer = this.store.ringTimers.get(callId);
+    if (timer) {
+      clearTimeout(timer);
+      this.store.ringTimers.delete(callId);
+    }
+  }
+
+  private clearCallActive(call: StoredCall): void {
+    this.clearRingTimeout(call.callId);
+    if (this.store.userActiveCall.get(call.callerId) === call.callId) {
+      this.store.userActiveCall.delete(call.callerId);
+    }
+    if (this.store.userActiveCall.get(call.calleeId) === call.callId) {
+      this.store.userActiveCall.delete(call.calleeId);
+    }
+  }
+
+  async finalizeCall(callId: string, systemMessage: string): Promise<StoredCall> {
+    const call = await this.updateCallStatus(callId, 'ended');
+    await this.addSystemMessage(call.convId, systemMessage);
+    return call;
   }
 }
 

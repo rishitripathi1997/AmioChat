@@ -1,4 +1,5 @@
 import { useChat } from '@/components/chat/ChatProvider';
+import { CallOverlay } from '@/components/chat/CallOverlay';
 import { Sidebar } from '@/components/chat/Sidebar';
 import { ThreadPanel } from '@/components/chat/ThreadPanel';
 
@@ -7,6 +8,7 @@ export function ChatShell() {
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#d1d7db]">
+      <CallOverlay />
       <div className="mx-auto flex h-full w-full max-w-[1600px] flex-1 overflow-hidden md:my-2 md:h-[calc(100dvh-16px)] md:rounded-xl md:shadow-lg">
         <div
           className={`${

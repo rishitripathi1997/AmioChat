@@ -4,6 +4,7 @@ import { formatMessageTime, isPendingMessage } from '@/lib/chat/utils';
 interface MessageBubbleProps {
   message: DisplayMessage;
   isOwn: boolean;
+  isSystem?: boolean;
 }
 
 function StatusTicks({ status }: { status: DisplayMessage['status'] }) {
@@ -19,8 +20,16 @@ function StatusTicks({ status }: { status: DisplayMessage['status'] }) {
   return <span className="text-[#53bdeb]" aria-label="Read">✓✓</span>;
 }
 
-export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
+export function MessageBubble({ message, isOwn, isSystem }: MessageBubbleProps) {
   const body = isPendingMessage(message) ? message.body : (message.body ?? `[${message.type}]`);
+
+  if (isSystem) {
+    return (
+      <div className="flex justify-center py-1">
+        <span className="rounded-lg bg-white/80 px-3 py-1 text-xs text-[#54656f]">{body}</span>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>

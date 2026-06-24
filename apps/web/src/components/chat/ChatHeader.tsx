@@ -2,11 +2,13 @@ import { useChat } from '@/components/chat/ChatProvider';
 import { Avatar } from '@/components/ui/Avatar';
 
 export function ChatHeader() {
-  const { selectedConv, setShowSidebarOnMobile } = useChat();
+  const { selectedConv, setShowSidebarOnMobile, startCall, activeCall, incomingCall } =
+    useChat();
 
   if (!selectedConv) return null;
 
   const { participant } = selectedConv;
+  const callDisabled = Boolean(activeCall || incomingCall);
 
   return (
     <header className="flex items-center gap-3 border-b border-[#e9edef] bg-[#f0f2f5] px-4 py-3">
@@ -23,11 +25,23 @@ export function ChatHeader() {
         <h1 className="truncate font-medium text-[#111b21]">{participant.displayName}</h1>
         <p className="truncate text-xs text-[#667781]">{participant.email}</p>
       </div>
-      <div className="flex gap-1 opacity-40" title="Voice and video calls in Phase 4.7">
-        <button type="button" disabled className="rounded-full p-2" aria-label="Voice call">
+      <div className="flex gap-1">
+        <button
+          type="button"
+          disabled={callDisabled}
+          onClick={() => void startCall('voice')}
+          className="rounded-full p-2 text-[#54656f] hover:bg-[#e9edef] disabled:opacity-40"
+          aria-label="Voice call"
+        >
           📞
         </button>
-        <button type="button" disabled className="rounded-full p-2" aria-label="Video call">
+        <button
+          type="button"
+          disabled={callDisabled}
+          onClick={() => void startCall('video')}
+          className="rounded-full p-2 text-[#54656f] hover:bg-[#e9edef] disabled:opacity-40"
+          aria-label="Video call"
+        >
           📹
         </button>
       </div>

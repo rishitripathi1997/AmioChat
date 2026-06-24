@@ -9,6 +9,27 @@ npm run dev
 # Open http://localhost:3000
 ```
 
+## Real-time chat + calls (local)
+
+```bash
+# Terminal 1 — Next.js
+npm run dev
+
+# Terminal 2 — WebSocket + call event bridge
+npm run dev:ws
+```
+
+Use two browsers (different accounts) to test messaging and voice/video calls.  
+Mock Chime is used by default — call UI works without AWS billing.  
+Incoming call notifications require **`npm run dev:ws`** running.
+
+Optional in `apps/web/.env.local`:
+
+```env
+NEXT_PUBLIC_WS_URL=ws://localhost:3002
+CALL_NOTIFY_URL=http://127.0.0.1:3002/internal/publish
+```
+
 ## Mock auth flow
 
 1. **Register** at `/register` with any email + password (8+ chars)
