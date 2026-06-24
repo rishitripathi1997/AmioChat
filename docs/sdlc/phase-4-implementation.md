@@ -18,8 +18,8 @@
 | 4.3 | Auth flows — register, login, PostConfirmation trigger (local mock + Cognito-ready) | **Complete** |
 | 4.4 | REST APIs — users, conversations, messages, media | **Complete** |
 | 4.5 | WebSocket handlers — connect, sendMessage, typing, read | **Complete** |
-| 4.6 | Chat UI — sidebar, thread, composer | **Next** |
-| 4.7 | Chime integration — call create/join, CallOverlay | Pending |
+| 4.6 | Chat UI — sidebar, thread, composer | **Complete** |
+| 4.7 | Chime integration — call create/join, CallOverlay | **Next** |
 | 4.8 | Polish — notifications, error states, reconnect | Pending |
 
 ---
@@ -122,6 +122,19 @@ npm run dev:ws
 
 `callSignal` returns `NOT_IMPLEMENTED` until Phase 4.7.
 
+### Phase 4.6 deliverables (complete)
+
+| Item | Implementation |
+|------|----------------|
+| Chat shell | WhatsApp Web layout — sidebar + thread panel |
+| Components | `Sidebar`, `ThreadPanel`, `MessageList`, `Composer`, `NewChatModal`, etc. |
+| State | `ChatProvider` — inbox, messages, optimistic send, typing, read receipts |
+| Reconnect | WS client exponential backoff; sync inbox + messages on reconnect |
+| Mobile | Single-panel toggle between sidebar and thread (< md) |
+| UX | Date dividers, unread badges, connection banner, message status ticks |
+
+Call buttons and file attachments are stubbed until Phase 4.7+.
+
 ---
 
 ## Revision history
@@ -134,3 +147,4 @@ npm run dev:ws
 | 0.5 | 2026-06-22 | SDLC Phase 4 | Phase 4.3: local mock auth UI + Cognito-ready + PostConfirmation handler |
 | 0.6 | 2026-06-16 | SDLC Phase 4 | Phase 4.4: REST APIs with memory repo + local Next.js proxy |
 | 0.7 | 2026-06-16 | SDLC Phase 4 | Phase 4.5: WebSocket handlers + local WS dev server |
+| 0.8 | 2026-06-16 | SDLC Phase 4 | Phase 4.6: WhatsApp-style chat UI shell |
