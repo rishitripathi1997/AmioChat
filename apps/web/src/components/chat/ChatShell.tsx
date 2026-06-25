@@ -1,3 +1,5 @@
+'use client';
+
 import { useChat } from '@/components/chat/ChatProvider';
 import { CallOverlay } from '@/components/chat/CallOverlay';
 import { Sidebar } from '@/components/chat/Sidebar';

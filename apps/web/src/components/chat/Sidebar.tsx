@@ -1,7 +1,10 @@
+'use client';
+
 import { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useChat } from '@/components/chat/ChatProvider';
 import { ConversationItem } from '@/components/chat/ConversationItem';
+import { NotificationToggle } from '@/components/chat/NotificationToggle';
 import { NewChatModal } from '@/components/chat/NewChatModal';
 import { Avatar } from '@/components/ui/Avatar';
 
@@ -74,6 +77,7 @@ export function Sidebar() {
       </div>
 
       <footer className="border-t border-[#e9edef] p-3">
+        <NotificationToggle />
         <button
           type="button"
           onClick={() => setNewChatOpen(true)}

@@ -1,5 +1,6 @@
 import type { DisplayMessage } from '@/lib/chat/utils';
 import { formatMessageTime, isPendingMessage } from '@/lib/chat/utils';
+import { MessageImage } from '@/components/chat/MessageImage';
 
 interface MessageBubbleProps {
   message: DisplayMessage;
@@ -21,12 +22,15 @@ function StatusTicks({ status }: { status: DisplayMessage['status'] }) {
 }
 
 export function MessageBubble({ message, isOwn, isSystem }: MessageBubbleProps) {
-  const body = isPendingMessage(message) ? message.body : (message.body ?? `[${message.type}]`);
+  const type = isPendingMessage(message) ? (message.type ?? 'text') : message.type;
+  const body = isPendingMessage(message) ? message.body : message.body;
+  const mediaKey = isPendingMessage(message) ? message.mediaKey : message.mediaKey;
 
-  if (isSystem) {
+  if (isSystem || type === 'system') {
+    const systemText = body ?? `[${type}]`;
     return (
       <div className="flex justify-center py-1">
-        <span className="rounded-lg bg-white/80 px-3 py-1 text-xs text-[#54656f]">{body}</span>
+        <span className="rounded-lg bg-white/80 px-3 py-1 text-xs text-[#54656f]">{systemText}</span>
       </div>
     );
   }
@@ -38,7 +42,13 @@ export function MessageBubble({ message, isOwn, isSystem }: MessageBubbleProps) 
           isOwn ? 'rounded-tr-none bg-[#d9fdd3]' : 'rounded-tl-none bg-white'
         }`}
       >
-        <p className="whitespace-pre-wrap break-words text-sm text-[#111b21]">{body}</p>
+        {type === 'image' && mediaKey && <MessageImage mediaKey={mediaKey} />}
+        {body && (
+          <p className="whitespace-pre-wrap break-words text-sm text-[#111b21]">{body}</p>
+        )}
+        {!body && type !== 'image' && (
+          <p className="text-sm text-[#667781]">[{type}]</p>
+        )}
         <div className="mt-0.5 flex items-center justify-end gap-1 text-[10px] text-[#667781]">
           <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
           {isOwn && <StatusTicks status={message.status} />}

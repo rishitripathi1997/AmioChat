@@ -20,7 +20,7 @@
 | 4.5 | WebSocket handlers — connect, sendMessage, typing, read | **Complete** |
 | 4.6 | Chat UI — sidebar, thread, composer | **Complete** |
 | 4.7 | Chime integration — call create/join, CallOverlay | **Complete** |
-| 4.8 | Polish — notifications, error states, reconnect | **Next** |
+| 4.8 | Polish — notifications, error states, reconnect | **Complete** |
 
 ---
 
@@ -155,6 +155,18 @@ npm run dev:ws   # Terminal 2 (includes call event bridge)
 
 Set `USE_MOCK_CHIME=false` and `CHIME_MEDIA_REGION=us-east-1` after Terraform apply for real Chime meetings.
 
+### Phase 4.8 deliverables (complete)
+
+| Item | Implementation |
+|------|----------------|
+| Toasts | `ToastProvider` — API/WS/call errors surfaced as dismissible toasts |
+| Browser notifications | Opt-in toggle in sidebar; new messages + incoming calls when tab unfocused |
+| Reconnect UX | "Back online" banner; sync inbox + missed messages only on reconnect (not first connect) |
+| Document title | Unread count prefix, e.g. `(3) AmioChat` |
+| Offline queue | Outbound text + image messages queued while disconnected, flushed on reconnect |
+| Image attachments | Composer attach button — JPEG/PNG/WebP up to 5 MB via media upload API |
+| Message images | `MessageImage` resolves download URL for image bubbles |
+
 ---
 
 ## Revision history
@@ -169,3 +181,4 @@ Set `USE_MOCK_CHIME=false` and `CHIME_MEDIA_REGION=us-east-1` after Terraform ap
 | 0.7 | 2026-06-16 | SDLC Phase 4 | Phase 4.5: WebSocket handlers + local WS dev server |
 | 0.8 | 2026-06-16 | SDLC Phase 4 | Phase 4.6: WhatsApp-style chat UI shell |
 | 0.9 | 2026-06-16 | SDLC Phase 4 | Phase 4.7: Chime calls REST + WS + CallOverlay |
+| 1.0 | 2026-06-16 | SDLC Phase 4 | Phase 4.8: polish — toasts, notifications, reconnect, images |

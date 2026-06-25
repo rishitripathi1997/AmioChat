@@ -1,10 +1,12 @@
-import type { Message } from '@amiochat/shared';
+import type { Message, MessageType } from '@amiochat/shared';
 
 export interface PendingMessage {
   clientMsgId: string;
   convId: string;
   senderId: string;
-  body: string;
+  type?: MessageType;
+  body?: string;
+  mediaKey?: string;
   createdAt: string;
   status: 'pending';
 }

@@ -113,6 +113,30 @@ export function createUploadUrl(
   );
 }
 
+export async function uploadMedia(
+  idToken: string,
+  convId: string,
+  file: File,
+): Promise<{ mediaKey: string }> {
+  const { uploadUrl, mediaKey } = await createUploadUrl(idToken, {
+    convId,
+    filename: file.name,
+    contentType: file.type,
+  });
+
+  const uploadRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type },
+    body: file,
+  });
+
+  if (!uploadRes.ok) {
+    throw new ApiError(uploadRes.status, 'UPLOAD_FAILED', 'Failed to upload file');
+  }
+
+  return { mediaKey };
+}
+
 export function createDownloadUrl(idToken: string, mediaKey: string) {
   return request<{ downloadUrl: string; expiresAt: string }>(
     '/media/download-url',

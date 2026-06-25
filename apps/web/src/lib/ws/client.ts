@@ -27,6 +27,7 @@ export function useWsClient({
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backoffIndex = useRef(0);
   const intentionalClose = useRef(false);
+  const hasConnectedOnce = useRef(false);
   const [connectionState, setConnectionState] = useState<WsConnectionState>('disconnected');
 
   useEffect(() => {
@@ -59,7 +60,11 @@ export function useWsClient({
       backoffIndex.current = 0;
       setConnectionState('connected');
       if (wsRef.current !== ws) return;
-      onReconnectRef.current?.();
+      if (hasConnectedOnce.current) {
+        onReconnectRef.current?.();
+      } else {
+        hasConnectedOnce.current = true;
+      }
     };
 
     ws.onclose = () => {
@@ -88,6 +93,7 @@ export function useWsClient({
   useEffect(() => {
     if (!enabled || !idToken) {
       intentionalClose.current = true;
+      hasConnectedOnce.current = false;
       clearReconnectTimer();
       wsRef.current?.close();
       wsRef.current = null;

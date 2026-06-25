@@ -18,9 +18,13 @@ import {
   listConversations,
   listMessages,
   searchUsers,
+  uploadMedia,
+  ApiError,
 } from '@/lib/api/client';
 import type { PendingMessage } from '@/lib/chat/utils';
 import { createMeetingController, type MeetingController } from '@/lib/chime/meeting';
+import { showBrowserNotification } from '@/lib/notifications/browser';
+import { useToast } from '@/components/ui/Toast';
 import { useWsClient, type WsConnectionState } from '@/lib/ws/client';
 import type {
   CallType,
@@ -35,7 +39,9 @@ import { isMockChimeMeeting } from '@amiochat/shared';
 interface QueuedOutbound {
   clientMsgId: string;
   convId: string;
-  body: string;
+  type: 'text' | 'image';
+  body?: string;
+  mediaKey?: string;
 }
 
 interface ActiveCallState {
@@ -61,6 +67,7 @@ interface ChatContextValue {
   setSidebarSearch: (q: string) => void;
   selectConversation: (convId: string | null) => void;
   sendTextMessage: (body: string) => void;
+  sendImageMessage: (file: File) => Promise<void>;
   sendTyping: (isTyping: boolean) => void;
   refreshInbox: () => Promise<void>;
   searchContacts: (query: string) => Promise<UserPublic[]>;
@@ -83,6 +90,7 @@ const ChatContext = createContext<ChatContextValue | null>(null);
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const { user, idToken } = useAuth();
+  const toast = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -104,6 +112,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const lastMessageAtRef = useRef<string | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingSentRef = useRef(0);
+  const selectConversationRef = useRef<(convId: string | null) => void>(() => {});
+
+  const formatError = useCallback((error: unknown, fallback: string) => {
+    if (error instanceof ApiError) return error.message;
+    if (error instanceof Error) return error.message;
+    return fallback;
+  }, []);
 
   useEffect(() => {
     selectedConvIdRef.current = selectedConvId;
@@ -121,32 +136,40 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const refreshInbox = useCallback(async () => {
     if (!idToken) return;
-    const inbox = await listConversations(idToken);
-    setConversations(inbox.conversations);
-  }, [idToken]);
+    try {
+      const inbox = await listConversations(idToken);
+      setConversations(inbox.conversations);
+    } catch (error) {
+      toast.error(formatError(error, 'Failed to refresh conversations'));
+    }
+  }, [formatError, idToken, toast]);
 
   const loadMessagesForConv = useCallback(
     async (convId: string, since?: string) => {
       if (!idToken) return;
-      const result = await listMessages(idToken, convId, { since, limit: 100 });
-      if (since) {
-        setMessages((prev) => {
-          const merged = [...prev];
-          for (const msg of result.messages) {
-            if (!merged.some((m) => m.messageId === msg.messageId)) {
-              merged.push(msg);
+      try {
+        const result = await listMessages(idToken, convId, { since, limit: 100 });
+        if (since) {
+          setMessages((prev) => {
+            const merged = [...prev];
+            for (const msg of result.messages) {
+              if (!merged.some((m) => m.messageId === msg.messageId)) {
+                merged.push(msg);
+              }
             }
-          }
-          return merged.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-        });
-      } else {
-        setMessages(result.messages);
-      }
-      if (result.messages.length > 0) {
-        lastMessageAtRef.current = result.messages[result.messages.length - 1].createdAt;
+            return merged.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          });
+        } else {
+          setMessages(result.messages);
+        }
+        if (result.messages.length > 0) {
+          lastMessageAtRef.current = result.messages[result.messages.length - 1].createdAt;
+        }
+      } catch (error) {
+        toast.error(formatError(error, 'Failed to load messages'));
       }
     },
-    [idToken],
+    [formatError, idToken, toast],
   );
 
   const markRead = useCallback(
@@ -178,6 +201,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const handleWsEvent = useCallback(
     (event: WsServerEnvelope) => {
+      if (event.event === 'error') {
+        const payload = event.payload as { code?: string; message?: string };
+        toast.error(payload.message ?? payload.code ?? 'Connection error');
+        return;
+      }
+
       if (event.event === 'message.new') {
         const msg = event.payload as Message;
         const activeConvId = selectedConvIdRef.current;
@@ -189,20 +218,33 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           markRead(msg.convId, msg.messageId);
         }
 
-        setConversations((prev) =>
-          prev.map((c) => {
+        setConversations((prev) => {
+          const conv = prev.find((c) => c.convId === msg.convId);
+          if (msg.senderId !== user?.userId && activeConvId !== msg.convId) {
+            const preview =
+              msg.type === 'image' ? 'Photo' : (msg.body ?? 'New message');
+            showBrowserNotification({
+              title: conv?.participant.displayName ?? 'New message',
+              body: preview,
+              tag: `msg-${msg.convId}`,
+              onClick: () => selectConversationRef.current(msg.convId),
+            });
+          }
+
+          return prev.map((c) => {
             if (c.convId !== msg.convId) return c;
             return {
               ...c,
               lastMessageAt: msg.createdAt,
-              lastMessagePreview: msg.body ?? `[${msg.type}]`,
+              lastMessagePreview:
+                msg.type === 'image' ? 'Photo' : (msg.body ?? `[${msg.type}]`),
               unreadCount:
                 activeConvId === msg.convId || msg.senderId === user?.userId
                   ? c.unreadCount
                   : c.unreadCount + 1,
             };
-          }),
-        );
+          });
+        });
       }
 
       if (event.event === 'message.ack') {
@@ -269,6 +311,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (event.event === 'call.incoming') {
         const payload = event.payload as IncomingCallPayload;
         setIncomingCall(payload);
+        showBrowserNotification({
+          title: `Incoming ${payload.type} call`,
+          body: payload.callerName,
+          tag: `call-${payload.callId}`,
+        });
       }
 
       if (event.event === 'call.updated') {
@@ -285,14 +332,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [cleanupCall, loadMessagesForConv, markRead, refreshInbox, user?.userId],
+    [cleanupCall, loadMessagesForConv, markRead, refreshInbox, toast, user?.userId],
   );
 
   const handleReconnect = useCallback(async () => {
-    await refreshInbox();
-    const convId = selectedConvIdRef.current;
-    if (convId && lastMessageAtRef.current) {
-      await loadMessagesForConv(convId, lastMessageAtRef.current);
+    try {
+      await refreshInbox();
+      const convId = selectedConvIdRef.current;
+      if (convId && lastMessageAtRef.current) {
+        await loadMessagesForConv(convId, lastMessageAtRef.current);
+      }
+    } catch {
+      // refreshInbox / loadMessages already surface errors
     }
   }, [loadMessagesForConv, refreshInbox]);
 
@@ -339,6 +390,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [markRead, messages, selectedConvId, user?.userId]);
 
+  useEffect(() => {
+    const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+    document.title = totalUnread > 0 ? `(${totalUnread}) AmioChat` : 'AmioChat';
+  }, [conversations]);
+
   const flushQueue = useCallback(() => {
     if (!connected || outboundQueue.length === 0) return;
     const sent: string[] = [];
@@ -349,8 +405,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         payload: {
           convId: item.convId,
           clientMsgId: item.clientMsgId,
-          type: 'text',
+          type: item.type,
           body: item.body,
+          mediaKey: item.mediaKey,
         },
       });
       if (ok) sent.push(item.clientMsgId);
@@ -395,11 +452,51 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (!sent) {
         setOutboundQueue((prev) => [
           ...prev,
-          { clientMsgId, convId: selectedConvId, body: trimmed },
+          { clientMsgId, convId: selectedConvId, type: 'text', body: trimmed },
         ]);
       }
     },
     [selectedConvId, user?.userId, wsSend],
+  );
+
+  const sendImageMessage = useCallback(
+    async (file: File) => {
+      if (!selectedConvId || !user?.userId || !idToken) return;
+
+      const clientMsgId = crypto.randomUUID();
+      const { mediaKey } = await uploadMedia(idToken, selectedConvId, file);
+
+      const pending: PendingMessage = {
+        clientMsgId,
+        convId: selectedConvId,
+        senderId: user.userId,
+        type: 'image',
+        mediaKey,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      setPendingMessages((prev) => [...prev, pending]);
+
+      const sent = wsSend({
+        action: 'sendMessage',
+        requestId: clientMsgId,
+        payload: {
+          convId: selectedConvId,
+          clientMsgId,
+          type: 'image',
+          mediaKey,
+        },
+      });
+
+      if (!sent) {
+        setOutboundQueue((prev) => [
+          ...prev,
+          { clientMsgId, convId: selectedConvId, type: 'image', mediaKey },
+        ]);
+      }
+    },
+    [idToken, selectedConvId, user?.userId, wsSend],
   );
 
   const sendTyping = useCallback(
@@ -427,6 +524,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  useEffect(() => {
+    selectConversationRef.current = selectConversation;
+  }, [selectConversation]);
+
   const searchContacts = useCallback(
     async (query: string) => {
       if (!idToken || query.trim().length < 3) return [];
@@ -439,76 +540,91 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const startConversation = useCallback(
     async (participantId: string) => {
       if (!idToken) return;
-      const conv = await createConversation(idToken, participantId);
-      await refreshInbox();
-      setSelectedConvId(conv.convId);
-      setShowSidebarOnMobile(false);
+      try {
+        const conv = await createConversation(idToken, participantId);
+        await refreshInbox();
+        setSelectedConvId(conv.convId);
+        setShowSidebarOnMobile(false);
+      } catch (error) {
+        toast.error(formatError(error, 'Failed to start conversation'));
+        throw error;
+      }
     },
-    [idToken, refreshInbox],
+    [formatError, idToken, refreshInbox, toast],
   );
 
   const startCall = useCallback(
     async (type: CallType) => {
       if (!idToken || !selectedConv) return;
-      const session = await createCall(idToken, selectedConv.convId, type);
-      sessionRef.current = session;
+      try {
+        const session = await createCall(idToken, selectedConv.convId, type);
+        sessionRef.current = session;
 
-      setActiveCall({
-        callId: session.callId,
-        convId: session.convId,
-        type: session.type,
-        remoteName: selectedConv.participant.displayName,
-        status: 'ringing',
-        role: 'caller',
-        isMock: isMockChimeMeeting(session.chimeMeeting.meetingId),
-      });
-      setCallVideoEnabled(type === 'video');
+        setActiveCall({
+          callId: session.callId,
+          convId: session.convId,
+          type: session.type,
+          remoteName: selectedConv.participant.displayName,
+          status: 'ringing',
+          role: 'caller',
+          isMock: isMockChimeMeeting(session.chimeMeeting.meetingId),
+        });
+        setCallVideoEnabled(type === 'video');
 
-      const controller = await createMeetingController(
-        session.chimeMeeting,
-        session.attendee,
-        type === 'video',
-      );
-      meetingControllerRef.current = controller;
-      await controller.join();
+        const controller = await createMeetingController(
+          session.chimeMeeting,
+          session.attendee,
+          type === 'video',
+        );
+        meetingControllerRef.current = controller;
+        await controller.join();
+      } catch (error) {
+        toast.error(formatError(error, 'Failed to start call'));
+        await cleanupCall();
+      }
     },
-    [idToken, selectedConv],
+    [cleanupCall, formatError, idToken, selectedConv, toast],
   );
 
   const acceptCall = useCallback(async () => {
     if (!idToken || !incomingCall) return;
 
-    wsSend({
-      action: 'callSignal',
-      payload: { callId: incomingCall.callId, signal: 'accept' },
-    });
+    try {
+      wsSend({
+        action: 'callSignal',
+        payload: { callId: incomingCall.callId, signal: 'accept' },
+      });
 
-    const joined = await joinCall(idToken, incomingCall.callId);
+      const joined = await joinCall(idToken, incomingCall.callId);
 
-    setActiveCall({
-      callId: incomingCall.callId,
-      convId: incomingCall.convId,
-      type: incomingCall.type,
-      remoteName: incomingCall.callerName,
-      status: 'connected',
-      role: 'callee',
-      isMock: isMockChimeMeeting(joined.chimeMeeting.meetingId),
-    });
-    setIncomingCall(null);
-    setCallVideoEnabled(incomingCall.type === 'video');
+      setActiveCall({
+        callId: incomingCall.callId,
+        convId: incomingCall.convId,
+        type: incomingCall.type,
+        remoteName: incomingCall.callerName,
+        status: 'connected',
+        role: 'callee',
+        isMock: isMockChimeMeeting(joined.chimeMeeting.meetingId),
+      });
+      setIncomingCall(null);
+      setCallVideoEnabled(incomingCall.type === 'video');
 
-    const controller = await createMeetingController(
-      joined.chimeMeeting,
-      {
-        attendeeId: joined.attendeeId,
-        joinToken: joined.joinToken,
-        externalUserId: joined.externalUserId,
-      },
-      incomingCall.type === 'video',
-    );
-    meetingControllerRef.current = controller;
-    await controller.join();
-  }, [idToken, incomingCall, wsSend]);
+      const controller = await createMeetingController(
+        joined.chimeMeeting,
+        {
+          attendeeId: joined.attendeeId,
+          joinToken: joined.joinToken,
+          externalUserId: joined.externalUserId,
+        },
+        incomingCall.type === 'video',
+      );
+      meetingControllerRef.current = controller;
+      await controller.join();
+    } catch (error) {
+      toast.error(formatError(error, 'Failed to join call'));
+      setIncomingCall(null);
+    }
+  }, [formatError, idToken, incomingCall, toast, wsSend]);
 
   const declineCall = useCallback(async () => {
     if (!incomingCall) return;
@@ -568,6 +684,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setSidebarSearch,
     selectConversation,
     sendTextMessage,
+    sendImageMessage,
     sendTyping,
     refreshInbox,
     searchContacts,

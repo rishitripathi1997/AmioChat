@@ -23,6 +23,8 @@ Use two browsers (different accounts) to test messaging and voice/video calls.
 Mock Chime is used by default — call UI works without AWS billing.  
 Incoming call notifications require **`npm run dev:ws`** running.
 
+Browser push notifications are opt-in from the sidebar footer (requires permission when the tab is in the background).
+
 Optional in `apps/web/.env.local`:
 
 ```env
