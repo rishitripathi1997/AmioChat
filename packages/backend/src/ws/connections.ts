@@ -1,3 +1,6 @@
+import { useDynamoDb } from '../db/dynamodb-client';
+import { DynamoConnectionRepository } from './dynamodb-connections';
+
 export interface ConnectionRepository {
   addConnection(userId: string, connectionId: string): Promise<void>;
   removeConnection(connectionId: string): Promise<string | null>;
@@ -62,7 +65,9 @@ let connections: ConnectionRepository | null = null;
 
 export function getConnectionRepository(): ConnectionRepository {
   if (!connections) {
-    connections = new MemoryConnectionRepository();
+    connections = useDynamoDb()
+      ? new DynamoConnectionRepository()
+      : new MemoryConnectionRepository();
   }
   return connections;
 }

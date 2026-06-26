@@ -1,3 +1,5 @@
+import { useDynamoDb } from './dynamodb-client';
+import { DynamoRepository } from './dynamodb';
 import { MemoryRepository } from './memory';
 import type { DataRepository } from './types';
 
@@ -5,10 +7,7 @@ let repository: DataRepository | null = null;
 
 export function getRepository(): DataRepository {
   if (!repository) {
-    if (process.env.USE_MEMORY_DB === 'false' && process.env.DYNAMODB_TABLE_NAME) {
-      throw new Error('DynamoDB repository not implemented yet — use USE_MEMORY_DB=true');
-    }
-    repository = new MemoryRepository();
+    repository = useDynamoDb() ? new DynamoRepository() : new MemoryRepository();
   }
   return repository;
 }

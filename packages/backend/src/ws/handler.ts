@@ -5,6 +5,10 @@ import type {
 } from 'aws-lambda';
 import type { WsClientEnvelope } from '@amiochat/shared';
 import { parseToken } from '../lib/auth';
+import {
+  createApiGatewayPublisher,
+  resolveWebSocketEndpointFromEvent,
+} from './apigw-publisher';
 import { getConnectionRepository } from './connections';
 import { NoopPublisher, type WsPublisher } from './publisher';
 import {
@@ -33,8 +37,11 @@ function getTokenFromQuery(event: APIGatewayProxyWebsocketEventV2): string | und
   return params?.token ?? undefined;
 }
 
-function createLambdaPublisher(_event: APIGatewayProxyWebsocketEventV2): WsPublisher {
-  // ApiGatewayManagementApi fan-out wired when deployed; noop until endpoint is configured.
+function createLambdaPublisher(event: APIGatewayProxyWebsocketEventV2): WsPublisher {
+  const { domainName, stage } = event.requestContext;
+  if (domainName && stage) {
+    return createApiGatewayPublisher(resolveWebSocketEndpointFromEvent(domainName, stage));
+  }
   return new NoopPublisher();
 }
 

@@ -1,13 +1,23 @@
 import type { WsServerEnvelope } from '@amiochat/shared';
+import { createApiGatewayPublisher, resolveWebSocketEndpoint } from './apigw-publisher';
 
 export interface CallEventPublisher {
   sendToUser(userId: string, event: WsServerEnvelope): Promise<void>;
 }
 
 let publisher: CallEventPublisher | null = null;
+let lazyPublisher: CallEventPublisher | null = null;
 
 export function setCallEventPublisher(p: CallEventPublisher): void {
   publisher = p;
+}
+
+async function getLazyPublisher(): Promise<CallEventPublisher | null> {
+  if (lazyPublisher) return lazyPublisher;
+  const endpoint = await resolveWebSocketEndpoint();
+  if (!endpoint) return null;
+  lazyPublisher = createApiGatewayPublisher(endpoint);
+  return lazyPublisher;
 }
 
 export async function publishCallEvent(
@@ -16,6 +26,12 @@ export async function publishCallEvent(
 ): Promise<void> {
   if (publisher) {
     await publisher.sendToUser(userId, event);
+    return;
+  }
+
+  const deployed = await getLazyPublisher();
+  if (deployed) {
+    await deployed.sendToUser(userId, event);
     return;
   }
 
@@ -35,4 +51,5 @@ export async function publishCallEvent(
 
 export function resetCallEventPublisherForTests(): void {
   publisher = null;
+  lazyPublisher = null;
 }

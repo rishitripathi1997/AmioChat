@@ -35,22 +35,44 @@ CI (Phase 5.7) runs tests on every PR. Deploy workflows (Phase 6.6) run Terrafor
 |------|------|--------|
 | 6.1 | Deployment strategy + runbooks (this doc) | **Complete** |
 | 6.2 | Remote state bootstrap (`infra/terraform/bootstrap/`) | **Complete** |
-| 6.3 | DynamoDB repository + WS connection store for Lambda | Pending |
+| 6.3 | DynamoDB repository + WS connection store for Lambda | **Complete** |
 | 6.4 | Production env wiring (CORS, SSM → Amplify env vars) | Pending |
 | 6.5 | Amplify Hosting (`amplify.yml`, branch deploy) | Pending |
 | 6.6 | GitHub Actions deploy workflow (plan / apply) | **Complete** |
 | 6.7 | First staging deploy + smoke test | Pending |
 
-### Blocker — DynamoDB data layer
+### Data layer (6.3 — complete)
 
-Phase 4 uses `MemoryRepository` for local dev. Lambda handlers share the same router but **throw if `USE_MEMORY_DB=false`** without a DynamoDB implementation.
+- **`DynamoRepository`** — `packages/backend/src/db/dynamodb.ts` (single-table schema + S3 presigned media)
+- **`DynamoConnectionRepository`** — `packages/backend/src/ws/dynamodb-connections.ts`
+- **Auto-select:** when `DYNAMODB_TABLE_NAME` is set and `USE_MEMORY_DB !== 'true'`, Lambda uses DynamoDB; local dev stays in-memory by default.
 
-Before the first AWS deploy:
+---
 
-1. Implement `DynamoRepository` in `packages/backend/src/db/dynamodb.ts` per [dynamodb-schema.md](./design/dynamodb-schema.md).
-2. Implement `DynamoConnectionRepository` in `packages/backend/src/ws/connections.ts` (or separate file).
-3. Wire `getRepository()` / `getConnectionRepository()` to select DynamoDB when `DYNAMODB_TABLE_NAME` is set.
-4. Add integration tests (optional: LocalStack or mocked AWS SDK).
+## When to run `terraform apply` / `destroy`
+
+You do **not** need Terraform to run local tests (`npm test`, `npm run test:e2e`). Apply only when you want to verify the stack on AWS.
+
+| Step | When |
+|------|------|
+| **`terraform apply`** | After 6.3 is in your branch and you want to smoke-test Cognito + API Gateway + DynamoDB on your personal account |
+| **Smoke test** | Immediately after apply — register a user, hit REST/WS endpoints |
+| **`terraform destroy`** | **Right after testing** — same terminal session, same var-file |
+
+```bash
+cd infra/terraform
+export AWS_PROFILE=amiochat-personal
+cp terraform.tfvars.example terraform.tfvars   # if not done yet
+
+terraform init
+terraform apply          # ← when ready to test on AWS
+
+# ... smoke test using outputs / SSM params ...
+
+terraform destroy        # ← run immediately when done
+```
+
+Bootstrap (`infra/terraform/bootstrap/`) is only needed for **staging/prod remote state** — skip it for a quick dev apply/destroy test.
 
 ---
 

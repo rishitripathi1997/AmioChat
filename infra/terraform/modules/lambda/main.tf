@@ -28,10 +28,10 @@ data "archive_file" "ws" {
 
 locals {
   lambda_env = {
-    ENVIRONMENT         = var.environment
-    DYNAMODB_TABLE_NAME = var.dynamodb_table_name
-    MEDIA_BUCKET_NAME   = var.media_bucket_name
-    COGNITO_USER_POOL_ID = var.cognito_user_pool_id
+    ENVIRONMENT                         = var.environment
+    DYNAMODB_TABLE_NAME                 = var.dynamodb_table_name
+    MEDIA_BUCKET_NAME                   = var.media_bucket_name
+    COGNITO_USER_POOL_ID                = var.cognito_user_pool_id
     AWS_NODEJS_CONNECTION_REUSE_ENABLED = "1"
   }
 }
@@ -68,6 +68,7 @@ resource "aws_iam_role_policy" "lambda_data" {
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
           "dynamodb:Query",
+          "dynamodb:Scan",
           "dynamodb:TransactWriteItems",
           "dynamodb:DeleteItem"
         ]
@@ -77,6 +78,11 @@ resource "aws_iam_role_policy" "lambda_data" {
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:PutObject"]
         Resource = ["${var.media_bucket_arn}/*"]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter", "ssm:GetParametersByPath"]
+        Resource = "arn:aws:ssm:${var.aws_region}:*:parameter/amiochat/*"
       },
       {
         Effect = "Allow"
