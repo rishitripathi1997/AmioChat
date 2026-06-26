@@ -44,8 +44,9 @@ export function LoginForm() {
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium text-[#111b21]">Email</label>
+        <label htmlFor="login-email" className="mb-1 block text-sm font-medium text-[#111b21]">Email</label>
         <input
+          id="login-email"
           type="email"
           required
           value={email}
@@ -55,8 +56,9 @@ export function LoginForm() {
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium text-[#111b21]">Password</label>
+        <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-[#111b21]">Password</label>
         <input
+          id="login-password"
           type="password"
           required
           value={password}

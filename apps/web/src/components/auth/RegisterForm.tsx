@@ -39,8 +39,9 @@ export function RegisterForm() {
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">Display name</label>
+        <label htmlFor="register-display-name" className="mb-1 block text-sm font-medium">Display name</label>
         <input
+          id="register-display-name"
           type="text"
           required
           value={displayName}
@@ -49,8 +50,9 @@ export function RegisterForm() {
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Email</label>
+        <label htmlFor="register-email" className="mb-1 block text-sm font-medium">Email</label>
         <input
+          id="register-email"
           type="email"
           required
           value={email}
@@ -59,8 +61,9 @@ export function RegisterForm() {
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Password</label>
+        <label htmlFor="register-password" className="mb-1 block text-sm font-medium">Password</label>
         <input
+          id="register-password"
           type="password"
           required
           minLength={8}

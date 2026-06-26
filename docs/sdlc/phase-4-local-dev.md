@@ -41,6 +41,15 @@ CALL_NOTIFY_URL=http://127.0.0.1:3002/internal/publish
 
 Password reset also uses code **`123456`** in mock mode.
 
+## E2E tests (Playwright)
+
+```bash
+npm run test:e2e:install   # once — downloads Chromium
+npm run test:e2e
+```
+
+Starts both dev servers automatically via `npm run dev:e2e`.
+
 No `terraform apply` required. Sessions use an httpOnly cookie; tokens stay in memory.
 
 ## Switch to real Cognito (after terraform apply)

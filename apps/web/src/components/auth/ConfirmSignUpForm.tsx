@@ -39,8 +39,9 @@ export function ConfirmSignUpForm() {
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">Email</label>
+        <label htmlFor="confirm-email" className="mb-1 block text-sm font-medium">Email</label>
         <input
+          id="confirm-email"
           type="email"
           required
           value={email}
@@ -49,8 +50,9 @@ export function ConfirmSignUpForm() {
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Verification code</label>
+        <label htmlFor="confirm-code" className="mb-1 block text-sm font-medium">Verification code</label>
         <input
+          id="confirm-code"
           type="text"
           required
           value={code}
