@@ -36,10 +36,30 @@ CI (Phase 5.7) runs tests on every PR. Deploy workflows (Phase 6.6) run Terrafor
 | 6.1 | Deployment strategy + runbooks (this doc) | **Complete** |
 | 6.2 | Remote state bootstrap (`infra/terraform/bootstrap/`) | **Complete** |
 | 6.3 | DynamoDB repository + WS connection store for Lambda | **Complete** |
-| 6.4 | Production env wiring (CORS, SSM → Amplify env vars) | Pending |
-| 6.5 | Amplify Hosting (`amplify.yml`, branch deploy) | Pending |
+| 6.4 | Production env wiring (CORS, SSM → Amplify env vars) | **Complete** |
+| 6.5 | Amplify Hosting (`amplify.yml`, branch deploy) | **Complete** |
 | 6.6 | GitHub Actions deploy workflow (plan / apply) | **Complete** |
 | 6.7 | First staging deploy + smoke test | Pending |
+
+### Production wiring (6.4 — complete)
+
+| Item | Location |
+|------|----------|
+| Direct API mode | `apps/web/src/lib/config/runtime.ts` — `NEXT_PUBLIC_API_URL` → API Gateway; default `/api/v1` for local |
+| WebSocket URL | `NEXT_PUBLIC_WS_URL` in `ws/client.ts` |
+| S3 CORS | `web_app_origins` → media bucket PUT/GET |
+| Amplify env output | `terraform output amplify_environment_variables` |
+| Print helper | `npm run print:deploy-env` |
+
+### Amplify Hosting (6.5 — complete)
+
+| Item | Location |
+|------|----------|
+| Build spec | Root `amplify.yml` (monorepo, `buildPath: /`) |
+| App root | `apps/web` |
+| Env vars | Set in Amplify Console after `terraform apply` — see below |
+
+---
 
 ### Data layer (6.3 — complete)
 
@@ -154,26 +174,54 @@ aws ssm get-parameters-by-path --path /amiochat/staging --recursive --profile am
 
 ## 6. Frontend (Amplify Hosting)
 
-### Connect repository
+### 1. Apply infrastructure first
 
-1. AWS Console → **Amplify** → **Create app** → connect GitHub `AmioChat`.
-2. Branch: `master` for staging (or a `staging` branch if preferred).
-3. Monorepo app root: `apps/web` (build spec: root `amplify.yml`).
-4. Set environment variables from SSM / Terraform outputs:
+```bash
+cd infra/terraform
+export AWS_PROFILE=amiochat-personal
+terraform apply    # or -var-file=environments/staging.tfvars
+```
 
-| Variable | Example source |
-|----------|------------------|
+### 2. Print Amplify environment variables
+
+```bash
+npm run print:deploy-env          # dev (default)
+npm run print:deploy-env staging  # staging
+```
+
+Copy output into **Amplify Console → App settings → Environment variables**.
+
+Also set **`AUTH_SESSION_SECRET`** to a long random string (mark as secret in Amplify if available).
+
+### 3. Connect GitHub in Amplify
+
+1. AWS Console → **Amplify** → **Create app** → connect `rishitripathi1997/AmioChat`.
+2. Branch: `master` (or `staging`).
+3. Amplify detects root `amplify.yml` and monorepo app root `apps/web`.
+4. Paste environment variables from step 2.
+5. Deploy.
+
+### 4. Update CORS with Amplify URL
+
+After the first Amplify deploy, copy the app URL (e.g. `https://master.xxxxx.amplifyapp.com`) into `web_app_origins` in your tfvars file, then re-apply:
+
+```bash
+terraform apply -var-file=environments/staging.tfvars
+```
+
+This updates HTTP API CORS and S3 media upload CORS.
+
+### Environment variable reference
+
+| Variable | Source |
+|----------|--------|
 | `NEXT_PUBLIC_AUTH_MODE` | `cognito` |
 | `NEXT_PUBLIC_AWS_REGION` | `us-east-1` |
 | `NEXT_PUBLIC_COGNITO_USER_POOL_ID` | Terraform output |
 | `NEXT_PUBLIC_COGNITO_CLIENT_ID` | Terraform output |
+| `NEXT_PUBLIC_API_URL` | Terraform `http_api_url` |
 | `NEXT_PUBLIC_WS_URL` | Terraform `websocket_api_url` |
-| `NEXT_PUBLIC_API_URL` | Terraform `http_api_url` (when frontend calls API directly) |
-| `AUTH_SESSION_SECRET` | Generate strong random string (Amplify secret) |
-| `USE_MEMORY_DB` | `false` |
-| `DYNAMODB_TABLE_NAME` | From SSM (if Next.js proxy still used) |
-
-Update `web_app_origins` in `environments/staging.tfvars` with the Amplify URL, then re-apply Terraform for CORS.
+| `AUTH_SESSION_SECRET` | Generate manually |
 
 ### Local env reference
 

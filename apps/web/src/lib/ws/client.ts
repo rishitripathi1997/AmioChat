@@ -2,8 +2,8 @@
 
 import type { WsClientEnvelope, WsServerEnvelope } from '@amiochat/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getWsUrl } from '@/lib/config/runtime';
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:3002';
 const BACKOFF_STEPS_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 
 export type WsConnectionState = 'disconnected' | 'connecting' | 'connected';
@@ -52,7 +52,7 @@ export function useWsClient({
     intentionalClose.current = false;
     setConnectionState('connecting');
 
-    const url = `${WS_URL}?token=${encodeURIComponent(idToken)}`;
+    const url = `${getWsUrl()}?token=${encodeURIComponent(idToken)}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
 

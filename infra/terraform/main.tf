@@ -21,8 +21,9 @@ module "dynamodb" {
 module "s3" {
   source = "./modules/s3"
 
-  name_prefix = local.name_prefix
-  environment = var.environment
+  name_prefix        = local.name_prefix
+  environment        = var.environment
+  cors_allow_origins = local.cors_allow_origins
 }
 
 module "lambda" {

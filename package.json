@@ -17,7 +17,8 @@
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:install": "playwright install chromium"
+    "test:e2e:install": "playwright install chromium",
+    "print:deploy-env": "bash scripts/print-amplify-env.sh"
   },
   "engines": {
     "node": ">=20"

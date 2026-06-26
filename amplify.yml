@@ -1,7 +1,9 @@
 version: 1
+# Monorepo: commands run from repo root; app lives in apps/web.
 applications:
   - appRoot: apps/web
     frontend:
+      buildPath: /
       phases:
         preBuild:
           commands:
@@ -10,7 +12,7 @@ applications:
           commands:
             - npm run build --workspace @amiochat/web
       artifacts:
-        baseDirectory: .next
+        baseDirectory: apps/web/.next
         files:
           - '**/*'
       cache:

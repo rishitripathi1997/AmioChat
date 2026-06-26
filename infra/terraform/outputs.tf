@@ -42,3 +42,15 @@ output "ssm_parameter_prefix" {
   description = "SSM path prefix for app configuration"
   value       = module.ssm.parameter_prefix
 }
+
+output "amplify_environment_variables" {
+  description = "Copy into Amplify Console → Environment variables (add AUTH_SESSION_SECRET manually)"
+  value = {
+    NEXT_PUBLIC_AUTH_MODE              = "cognito"
+    NEXT_PUBLIC_AWS_REGION             = var.aws_region
+    NEXT_PUBLIC_COGNITO_USER_POOL_ID   = module.cognito.user_pool_id
+    NEXT_PUBLIC_COGNITO_CLIENT_ID      = module.cognito.client_id
+    NEXT_PUBLIC_API_URL                = module.http_api.api_url
+    NEXT_PUBLIC_WS_URL                 = module.websocket_api.api_url
+  }
+}

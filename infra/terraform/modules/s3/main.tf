@@ -25,9 +25,9 @@ resource "aws_s3_bucket_cors_configuration" "media" {
   bucket = aws_s3_bucket.media.id
 
   cors_rule {
-    allowed_headers = ["Content-Type"]
-    allowed_methods = ["PUT"]
-    allowed_origins = var.environment == "dev" ? ["http://localhost:3000"] : ["https://example.com"]
+    allowed_headers = ["Content-Type", "Authorization", "*"]
+    allowed_methods = ["PUT", "GET", "HEAD"]
+    allowed_origins = var.cors_allow_origins
     max_age_seconds = 3000
   }
 }

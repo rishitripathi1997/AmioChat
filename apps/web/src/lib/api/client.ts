@@ -7,8 +7,11 @@ import type {
   User,
   UserPublic,
 } from '@amiochat/shared';
+import { getApiBaseUrl } from '@/lib/config/runtime';
 
-const API_BASE = '/api/v1';
+function apiBase(): string {
+  return getApiBaseUrl();
+}
 
 export class ApiError extends Error {
   constructor(
@@ -26,7 +29,7 @@ async function request<T>(
   idToken: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${apiBase()}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${idToken}`,
@@ -146,7 +149,7 @@ export function createDownloadUrl(idToken: string, mediaKey: string) {
 }
 
 export function getHealth() {
-  return fetch(`${API_BASE}/health`).then((r) => r.json());
+  return fetch(`${apiBase()}/health`).then((r) => r.json());
 }
 
 export function createCall(idToken: string, convId: string, type: CallType) {
