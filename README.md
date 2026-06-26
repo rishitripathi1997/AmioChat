@@ -4,7 +4,7 @@ A WhatsApp Web–style messaging application with live chat and video calling, b
 
 ## Status
 
-SDLC **Phase 4 (Implementation)** in progress. Phases 1–3 complete. See [docs/sdlc/](./docs/sdlc/).
+SDLC **Phase 6 (Deployment)** in progress. Phases 1–5 complete. See [docs/sdlc/](./docs/sdlc/).
 
 ## Tech stack (confirmed)
 
@@ -26,6 +26,8 @@ SDLC **Phase 4 (Implementation)** in progress. Phases 1–3 complete. See [docs/
 | 1 — Requirements | [docs/sdlc/phase-1-requirements.md](./docs/sdlc/phase-1-requirements.md) |
 | 2 — Architecture | [docs/sdlc/phase-2-architecture.md](./docs/sdlc/phase-2-architecture.md) |
 | 3 — Design       | [docs/sdlc/phase-3-design.md](./docs/sdlc/phase-3-design.md)             |
+| 5 — Testing      | [docs/sdlc/phase-5-testing.md](./docs/sdlc/phase-5-testing.md)             |
+| 6 — Deployment   | [docs/sdlc/phase-6-deployment.md](./docs/sdlc/phase-6-deployment.md)     |
 | SDLC tracker     | [docs/sdlc/README.md](./docs/sdlc/README.md)                             |
 
 

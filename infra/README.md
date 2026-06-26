@@ -101,9 +101,23 @@ terraform apply
 
 ## Remote state (staging / prod)
 
-1. Create an S3 bucket and DynamoDB lock table (one-time, can be a separate bootstrap stack).
-2. Copy `backend.tf.example` → `backend.tf` and fill in bucket/table names.
-3. `terraform init -migrate-state`
+1. Bootstrap once (creates S3 bucket + DynamoDB lock table):
+
+```bash
+cd infra/terraform/bootstrap
+cp terraform.tfvars.example terraform.tfvars
+terraform init && terraform apply
+```
+
+2. Copy bucket/table names into `backends/staging.hcl` and `backends/prod.hcl`.
+3. Init main stack with remote backend:
+
+```bash
+cd ../
+terraform init -backend-config=backends/staging.hcl
+```
+
+See [Phase 6 Deployment](../docs/sdlc/phase-6-deployment.md) for the full runbook.
 
 ## Environments
 
@@ -152,4 +166,5 @@ aws ssm get-parameters-by-path --path /amiochat/dev --recursive --profile amioch
 
 - [Phase 2 Architecture](../docs/sdlc/phase-2-architecture.md)
 - [Phase 4 Implementation](../docs/sdlc/phase-4-implementation.md)
+- [Phase 6 Deployment](../docs/sdlc/phase-6-deployment.md)
 - [DynamoDB schema](../docs/sdlc/design/dynamodb-schema.md)

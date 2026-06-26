@@ -12,7 +12,7 @@ This folder tracks deliverables across the software development lifecycle for Am
 | 3     | Design                   | **Complete**    | [phase-3-design.md](./phase-3-design.md)             |
 | 4     | Implementation           | **Complete**    | [phase-4-implementation.md](./phase-4-implementation.md) |
 | 5     | Testing                  | **Complete**    | [phase-5-testing.md](./phase-5-testing.md)             |
-| 6     | Deployment               | Pending         | CI/CD, IaC, environments                             |
+| 6     | Deployment               | **In progress** | [phase-6-deployment.md](./phase-6-deployment.md)       |
 | 7     | Operations               | Pending         | Monitoring, scaling, runbooks                        |
 
 
