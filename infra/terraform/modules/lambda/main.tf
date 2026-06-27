@@ -1,7 +1,8 @@
 resource "null_resource" "build_backend" {
   triggers = {
-    rest_hash = filemd5("${var.backend_source_root}/packages/backend/src/rest/handler.ts")
-    ws_hash   = filemd5("${var.backend_source_root}/packages/backend/src/ws/handler.ts")
+    rest_hash   = filemd5("${var.backend_source_root}/packages/backend/src/rest/handler.ts")
+    router_hash = filemd5("${var.backend_source_root}/packages/backend/src/rest/router.ts")
+    ws_hash     = filemd5("${var.backend_source_root}/packages/backend/src/ws/handler.ts")
   }
 
   provisioner "local-exec" {

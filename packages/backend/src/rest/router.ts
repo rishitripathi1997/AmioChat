@@ -87,6 +87,10 @@ export async function handleRestRequest(
     process.env.MEDIA_BASE_URL ??
     'http://localhost:3000/api';
 
+  if (method === 'OPTIONS') {
+    return emptyResponse(204);
+  }
+
   if (method === 'GET' && path === '/health') {
     return json(200, {
       status: 'ok',

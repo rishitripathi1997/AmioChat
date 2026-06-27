@@ -73,6 +73,22 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
 }
 
+# JWT on $default breaks browser CORS preflight (OPTIONS → 401). Explicit OPTIONS routes
+# without auth proxy to Lambda, which returns 204 (API Gateway adds CORS headers).
+resource "aws_apigatewayv2_route" "options_proxy" {
+  api_id             = aws_apigatewayv2_api.http.id
+  route_key          = "OPTIONS /{proxy+}"
+  authorization_type = "NONE"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "options_root" {
+  api_id             = aws_apigatewayv2_api.http.id
+  route_key          = "OPTIONS /"
+  authorization_type = "NONE"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
 resource "aws_apigatewayv2_route" "health" {
   api_id    = aws_apigatewayv2_api.http.id
   route_key = "GET /health"

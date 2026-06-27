@@ -14,6 +14,7 @@ import {
   createConversation,
   createCall,
   endCall as endCallApi,
+  getCurrentUser,
   joinCall,
   listConversations,
   listMessages,
@@ -362,6 +363,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       setLoading(true);
       try {
+        // Creates the DynamoDB profile on first visit (PostConfirmation trigger not wired yet).
+        await getCurrentUser(idToken);
         await refreshInbox();
       } finally {
         setLoading(false);
