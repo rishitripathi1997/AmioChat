@@ -5,6 +5,8 @@ import { mockRefreshSession } from '@/lib/auth/mock-store';
 import { verifyMockRefreshToken } from '@/lib/auth/mock-crypto';
 import { getServerAuthClient } from '@/lib/auth/server';
 
+export const runtime = 'nodejs';
+
 export async function POST() {
   const config = getAuthConfig();
   const jar = await cookies();

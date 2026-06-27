@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAuthConfig } from '@/lib/auth/config';
-import { signMockRefreshToken } from '@/lib/auth/mock-crypto';
-import { REFRESH_COOKIE_OPTIONS } from '@/lib/auth/server';
+import { REFRESH_COOKIE_OPTIONS } from '@/lib/auth/cookie-options';
+
+export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   const config = getAuthConfig();
@@ -11,10 +12,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing refresh token' }, { status: 400 });
   }
 
-  const cookieValue =
-    config.mode === 'mock'
-      ? signMockRefreshToken(body.refreshToken, config.sessionSecret)
-      : body.refreshToken;
+  let cookieValue = body.refreshToken;
+  if (config.mode === 'mock') {
+    const { signMockRefreshToken } = await import('@/lib/auth/mock-crypto');
+    cookieValue = signMockRefreshToken(body.refreshToken, config.sessionSecret);
+  }
 
   const response = NextResponse.json({ ok: true });
   response.cookies.set(config.cookieName, cookieValue, REFRESH_COOKIE_OPTIONS);

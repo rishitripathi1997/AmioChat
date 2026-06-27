@@ -1,18 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getAuthConfig } from '@/lib/auth/config';
-import {
-  mockConfirmSignUp,
-  mockForgotPassword,
-  mockResetPassword,
-  mockSignIn,
-  mockSignUp,
-} from '@/lib/auth/mock-store';
+
+export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   const config = getAuthConfig();
   if (config.mode !== 'mock') {
     return NextResponse.json({ error: 'Mock API disabled' }, { status: 403 });
   }
+
+  const {
+    mockConfirmSignUp,
+    mockForgotPassword,
+    mockResetPassword,
+    mockSignIn,
+    mockSignUp,
+  } = await import('@/lib/auth/mock-store');
 
   const body = (await request.json()) as { action?: string } & Record<string, string>;
 

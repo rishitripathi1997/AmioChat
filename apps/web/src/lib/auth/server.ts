@@ -4,6 +4,9 @@ import {
 } from '@aws-sdk/client-cognito-identity-provider';
 import { getAuthConfig } from './config';
 import type { AuthClient, AuthSession } from './types';
+import { REFRESH_COOKIE_OPTIONS } from './cookie-options';
+
+export { REFRESH_COOKIE_OPTIONS };
 
 export function getServerAuthClient(): AuthClient {
   const config = getAuthConfig();
@@ -65,11 +68,3 @@ function createCognitoServerClient(cognito: {
     },
   };
 }
-
-export const REFRESH_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
-  path: '/',
-  maxAge: 60 * 60 * 24 * 30,
-};
