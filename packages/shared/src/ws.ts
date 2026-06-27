@@ -1,6 +1,7 @@
 import type { MessageType, PresenceStatus } from './types';
 
 export type WsClientAction =
+  | 'authenticate'
   | 'sendMessage'
   | 'typing'
   | 'read'

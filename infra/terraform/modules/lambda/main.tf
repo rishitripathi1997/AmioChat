@@ -3,6 +3,7 @@ resource "null_resource" "build_backend" {
     rest_hash   = filemd5("${var.backend_source_root}/packages/backend/src/rest/handler.ts")
     router_hash = filemd5("${var.backend_source_root}/packages/backend/src/rest/router.ts")
     ws_hash     = filemd5("${var.backend_source_root}/packages/backend/src/ws/handler.ts")
+    shared_hash = filemd5("${var.backend_source_root}/packages/shared/src/ws.ts")
   }
 
   provisioner "local-exec" {

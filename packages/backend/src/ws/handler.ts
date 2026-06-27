@@ -25,18 +25,6 @@ function wsResponse(statusCode: number, body?: unknown): APIGatewayProxyResultV2
   };
 }
 
-function getUserIdFromAuthorizer(event: APIGatewayProxyWebsocketEventV2): string | undefined {
-  const ctx = event.requestContext as APIGatewayProxyWebsocketEventV2['requestContext'] & {
-    authorizer?: { jwt?: { claims?: Record<string, string> } };
-  };
-  return ctx.authorizer?.jwt?.claims?.sub;
-}
-
-function getTokenFromQuery(event: APIGatewayProxyWebsocketEventV2): string | undefined {
-  const params = event.queryStringParameters;
-  return params?.token ?? undefined;
-}
-
 function createLambdaPublisher(event: APIGatewayProxyWebsocketEventV2): WsPublisher {
   const { domainName, stage } = event.requestContext;
   if (domainName && stage) {
@@ -51,23 +39,9 @@ export const handler: APIGatewayProxyWebsocketHandlerV2 = async (event) => {
   const publisher = createLambdaPublisher(event);
 
   switch (routeKey) {
-    case '$connect': {
-      let userId = getUserIdFromAuthorizer(event);
-      if (!userId) {
-        const auth = parseToken(getTokenFromQuery(event));
-        userId = auth?.userId;
-      }
-      if (!userId) {
-        return wsResponse(401, { code: 'UNAUTHORIZED', message: 'Missing user identity' });
-      }
-
-      await handleConnect({
-        auth: { userId, email: '' },
-        connectionId,
-        publisher,
-      });
+    case '$connect':
+      // Defer auth to the first `authenticate` message (API Gateway often drops long ?token= values).
       return wsResponse(200);
-    }
 
     case '$disconnect': {
       const connections = getConnectionRepository();
@@ -84,10 +58,6 @@ export const handler: APIGatewayProxyWebsocketHandlerV2 = async (event) => {
 
     default: {
       const connections = getConnectionRepository();
-      const userId = await connections.getConnectionUser(connectionId);
-      if (!userId) {
-        return wsResponse(401, { code: 'UNAUTHORIZED', message: 'Unknown connection' });
-      }
 
       let envelope: WsClientEnvelope;
       try {
@@ -97,6 +67,40 @@ export const handler: APIGatewayProxyWebsocketHandlerV2 = async (event) => {
           event: 'error',
           payload: { code: 'VALIDATION_ERROR', message: 'Invalid JSON' },
         });
+      }
+
+      if (envelope.action === 'authenticate') {
+        const token = (envelope.payload as { token?: string } | undefined)?.token;
+        const auth = parseToken(token);
+        if (!auth) {
+          await publisher.send(connectionId, {
+            event: 'error',
+            payload: { code: 'UNAUTHORIZED', message: 'Invalid token', requestId: envelope.requestId },
+            requestId: envelope.requestId,
+          });
+          return wsResponse(401);
+        }
+
+        await handleConnect({
+          auth,
+          connectionId,
+          publisher,
+        });
+        return wsResponse(200);
+      }
+
+      const userId = await connections.getConnectionUser(connectionId);
+      if (!userId) {
+        await publisher.send(connectionId, {
+          event: 'error',
+          payload: {
+            code: 'UNAUTHORIZED',
+            message: 'Connection not authenticated',
+            requestId: envelope.requestId,
+          },
+          requestId: envelope.requestId,
+        });
+        return wsResponse(401);
       }
 
       const events = await handleWsAction(

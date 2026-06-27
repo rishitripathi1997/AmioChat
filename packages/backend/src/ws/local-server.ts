@@ -1,4 +1,4 @@
-import { createServer, type IncomingMessage } from 'node:http';
+import { createServer } from 'node:http';
 import { WebSocketServer, WebSocket, type WebSocket as WsSocket } from 'ws';
 import type { WsClientEnvelope, WsServerEnvelope } from '@amiochat/shared';
 import { parseToken } from '../lib/auth';
@@ -27,11 +27,6 @@ class LocalWsPublisher implements WsPublisher {
     const ids = await repo.getUserConnections(userId);
     await Promise.all(ids.map((id) => this.send(id, event)));
   }
-}
-
-function parseTokenFromRequest(req: IncomingMessage): string | null {
-  const url = new URL(req.url ?? '/', 'http://localhost');
-  return url.searchParams.get('token');
 }
 
 export function startLocalWsServer(port = 3002): void {
@@ -67,16 +62,10 @@ export function startLocalWsServer(port = 3002): void {
 
   const wss = new WebSocketServer({ server });
 
-  wss.on('connection', async (ws, req) => {
-    const token = parseTokenFromRequest(req);
-    const auth = parseToken(token);
-    if (!auth) {
-      ws.close(4401, 'Unauthorized');
-      return;
-    }
-
+  wss.on('connection', (ws) => {
     const connectionId = crypto.randomUUID();
     connections.set(connectionId, ws);
+    let auth: ReturnType<typeof parseToken> = null;
 
     ws.on('message', async (data) => {
       let envelope: WsClientEnvelope;
@@ -87,6 +76,32 @@ export function startLocalWsServer(port = 3002): void {
           JSON.stringify({
             event: 'error',
             payload: { code: 'VALIDATION_ERROR', message: 'Invalid JSON' },
+          }),
+        );
+        return;
+      }
+
+      if (envelope.action === 'authenticate') {
+        auth = parseToken((envelope.payload as { token?: string } | undefined)?.token);
+        if (!auth) {
+          ws.send(
+            JSON.stringify({
+              event: 'error',
+              payload: { code: 'UNAUTHORIZED', message: 'Invalid token' },
+            }),
+          );
+          ws.close(4401, 'Unauthorized');
+          return;
+        }
+        await handleConnect({ auth, connectionId, publisher });
+        return;
+      }
+
+      if (!auth) {
+        ws.send(
+          JSON.stringify({
+            event: 'error',
+            payload: { code: 'UNAUTHORIZED', message: 'Connection not authenticated' },
           }),
         );
         return;
@@ -112,8 +127,6 @@ export function startLocalWsServer(port = 3002): void {
         }
       }
     });
-
-    await handleConnect({ auth, connectionId, publisher });
   });
 
   server.listen(port, () => {

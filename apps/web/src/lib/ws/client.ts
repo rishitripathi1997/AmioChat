@@ -22,13 +22,19 @@ export function useWsClient({
   onReconnect,
 }: UseWsClientOptions) {
   const wsRef = useRef<WebSocket | null>(null);
+  const idTokenRef = useRef(idToken);
   const onEventRef = useRef(onEvent);
   const onReconnectRef = useRef(onReconnect);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backoffIndex = useRef(0);
   const intentionalClose = useRef(false);
   const hasConnectedOnce = useRef(false);
+  const authenticatedRef = useRef(false);
   const [connectionState, setConnectionState] = useState<WsConnectionState>('disconnected');
+
+  useEffect(() => {
+    idTokenRef.current = idToken;
+  }, [idToken]);
 
   useEffect(() => {
     onEventRef.current = onEvent;
@@ -46,34 +52,34 @@ export function useWsClient({
   }, []);
 
   const connect = useCallback(() => {
-    if (!idToken || !enabled) return;
+    if (!idTokenRef.current || !enabled) return;
 
     clearReconnectTimer();
     intentionalClose.current = false;
+    authenticatedRef.current = false;
     setConnectionState('connecting');
 
-    const url = `${getWsUrl()}?token=${encodeURIComponent(idToken)}`;
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(getWsUrl());
     wsRef.current = ws;
 
     ws.onopen = () => {
-      backoffIndex.current = 0;
-      setConnectionState('connected');
       if (wsRef.current !== ws) return;
-      if (hasConnectedOnce.current) {
-        onReconnectRef.current?.();
-      } else {
-        hasConnectedOnce.current = true;
-      }
+      ws.send(
+        JSON.stringify({
+          action: 'authenticate',
+          payload: { token: idTokenRef.current },
+        } satisfies WsClientEnvelope),
+      );
     };
 
     ws.onclose = () => {
       if (wsRef.current === ws) {
         wsRef.current = null;
       }
+      authenticatedRef.current = false;
       setConnectionState('disconnected');
 
-      if (!intentionalClose.current && enabled && idToken) {
+      if (!intentionalClose.current && enabled && idTokenRef.current) {
         const delay = BACKOFF_STEPS_MS[Math.min(backoffIndex.current, BACKOFF_STEPS_MS.length - 1)];
         backoffIndex.current += 1;
         reconnectTimer.current = setTimeout(connect, delay);
@@ -83,17 +89,30 @@ export function useWsClient({
     ws.onmessage = (msg) => {
       try {
         const event = JSON.parse(msg.data as string) as WsServerEnvelope;
+
+        if (event.event === 'connected') {
+          authenticatedRef.current = true;
+          backoffIndex.current = 0;
+          setConnectionState('connected');
+          if (hasConnectedOnce.current) {
+            onReconnectRef.current?.();
+          } else {
+            hasConnectedOnce.current = true;
+          }
+        }
+
         onEventRef.current?.(event);
       } catch {
         // ignore malformed frames
       }
     };
-  }, [clearReconnectTimer, enabled, idToken]);
+  }, [clearReconnectTimer, enabled]);
 
   useEffect(() => {
     if (!enabled || !idToken) {
       intentionalClose.current = true;
       hasConnectedOnce.current = false;
+      authenticatedRef.current = false;
       clearReconnectTimer();
       wsRef.current?.close();
       wsRef.current = null;
@@ -105,7 +124,7 @@ export function useWsClient({
 
     const pingInterval = setInterval(() => {
       const ws = wsRef.current;
-      if (ws?.readyState === WebSocket.OPEN) {
+      if (ws?.readyState === WebSocket.OPEN && authenticatedRef.current) {
         ws.send(JSON.stringify({ action: 'ping', payload: {} }));
       }
     }, 30_000);
@@ -121,7 +140,7 @@ export function useWsClient({
 
   const send = useCallback((envelope: WsClientEnvelope) => {
     const ws = wsRef.current;
-    if (ws?.readyState === WebSocket.OPEN) {
+    if (ws?.readyState === WebSocket.OPEN && authenticatedRef.current) {
       ws.send(JSON.stringify(envelope));
       return true;
     }
