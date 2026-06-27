@@ -58,9 +58,6 @@ module "websocket_api" {
 
   name_prefix          = local.name_prefix
   environment          = var.environment
-  aws_region           = var.aws_region
-  cognito_user_pool_id = module.cognito.user_pool_id
-  cognito_client_id    = module.cognito.client_id
   lambda_invoke_arn    = module.lambda.ws_invoke_arn
   lambda_function_name = module.lambda.ws_function_name
 }
