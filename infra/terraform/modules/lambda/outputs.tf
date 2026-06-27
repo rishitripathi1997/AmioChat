@@ -29,3 +29,11 @@ output "lambda_role_arn" {
 output "lambda_role_name" {
   value = aws_iam_role.lambda.name
 }
+
+output "rest_log_group_name" {
+  value = aws_cloudwatch_log_group.rest.name
+}
+
+output "ws_log_group_name" {
+  value = aws_cloudwatch_log_group.ws.name
+}

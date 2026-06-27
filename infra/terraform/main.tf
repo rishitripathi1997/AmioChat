@@ -38,6 +38,7 @@ module "lambda" {
   media_bucket_name    = module.s3.bucket_name
   cognito_user_pool_id = module.cognito.user_pool_id
   backend_source_root  = local.backend_source_root
+  log_retention_days   = var.log_retention_days
 }
 
 module "http_api" {
@@ -82,9 +83,22 @@ module "ssm" {
   environment          = var.environment
   aws_region           = var.aws_region
   cognito_user_pool_id = module.cognito.user_pool_id
-  cognito_client_id      = module.cognito.client_id
+  cognito_client_id    = module.cognito.client_id
   dynamodb_table_name  = module.dynamodb.table_name
   media_bucket_name    = module.s3.bucket_name
   http_api_url         = module.http_api.api_url
   websocket_api_url    = module.websocket_api.api_url
+}
+
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  name_prefix         = local.name_prefix
+  environment         = var.environment
+  aws_region          = var.aws_region
+  rest_function_name  = module.lambda.rest_function_name
+  ws_function_name    = module.lambda.ws_function_name
+  http_api_id         = module.http_api.api_id
+  websocket_api_id    = module.websocket_api.api_id
+  dynamodb_table_name = module.dynamodb.table_name
 }

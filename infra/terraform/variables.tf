@@ -31,3 +31,9 @@ variable "web_app_origins" {
   type        = list(string)
   default     = ["http://localhost:3000"]
 }
+
+variable "log_retention_days" {
+  description = "CloudWatch log retention for Lambda functions (OPS-01)"
+  type        = number
+  default     = 14
+}

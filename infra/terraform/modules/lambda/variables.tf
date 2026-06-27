@@ -34,3 +34,9 @@ variable "backend_source_root" {
   type        = string
   description = "Path to monorepo root (for Lambda build)"
 }
+
+variable "log_retention_days" {
+  type        = number
+  description = "CloudWatch log retention for Lambda log groups"
+  default     = 14
+}

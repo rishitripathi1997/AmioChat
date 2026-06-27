@@ -2,8 +2,8 @@
 
 **Project:** AmioChat  
 **Version:** 0.1  
-**Last updated:** 2026-06-16  
-**Status:** In progress  
+**Last updated:** 2026-06-27  
+**Status:** Complete  
 **Prerequisites:** Phase 5 (complete)
 
 ---
@@ -39,7 +39,7 @@ CI (Phase 5.7) runs tests on every PR. Deploy workflows (Phase 6.6) run Terrafor
 | 6.4 | Production env wiring (CORS, SSM → Amplify env vars) | **Complete** |
 | 6.5 | Amplify Hosting (`amplify.yml`, branch deploy) | **Complete** |
 | 6.6 | GitHub Actions deploy workflow (plan / apply) | **Complete** |
-| 6.7 | First staging deploy + smoke test | Pending |
+| 6.7 | First staging deploy + smoke test | **Complete** |
 
 ### Production wiring (6.4 — complete)
 
@@ -272,7 +272,7 @@ Enable **S3 versioning** on the Terraform state bucket (bootstrap module does th
 - On-demand DynamoDB (no provisioned capacity at MVP scale).
 - Lambda memory 256 MB, 30 s timeout.
 - S3 lifecycle: optional transition for old media after 90 days (future).
-- CloudWatch log retention: 14 days (configure in Phase 7).
+- CloudWatch log retention: 14 days (see [phase-7-operations.md](./phase-7-operations.md)).
 
 Target: **< $200/month** at ~500 concurrent users (Phase 1 assumption).
 

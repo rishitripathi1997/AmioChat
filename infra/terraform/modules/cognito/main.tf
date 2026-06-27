@@ -31,17 +31,17 @@ resource "aws_cognito_user_pool_client" "web" {
   name         = "${var.name_prefix}-web"
   user_pool_id = aws_cognito_user_pool.main.id
 
-  generate_secret                      = false
-  explicit_auth_flows                  = [
+  generate_secret = false
+  explicit_auth_flows = [
     "ALLOW_USER_SRP_AUTH",
     "ALLOW_USER_PASSWORD_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]
-  prevent_user_existence_errors        = "ENABLED"
-  enable_token_revocation              = true
-  id_token_validity                    = 1
-  access_token_validity                = 1
-  refresh_token_validity               = 30
+  prevent_user_existence_errors = "ENABLED"
+  enable_token_revocation       = true
+  id_token_validity             = 1
+  access_token_validity         = 1
+  refresh_token_validity        = 30
   token_validity_units {
     id_token      = "hours"
     access_token  = "hours"

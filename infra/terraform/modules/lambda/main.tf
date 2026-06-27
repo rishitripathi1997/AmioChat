@@ -3,6 +3,7 @@ resource "null_resource" "build_backend" {
     rest_hash   = filemd5("${var.backend_source_root}/packages/backend/src/rest/handler.ts")
     router_hash = filemd5("${var.backend_source_root}/packages/backend/src/rest/router.ts")
     ws_hash     = filemd5("${var.backend_source_root}/packages/backend/src/ws/handler.ts")
+    logger_hash = filemd5("${var.backend_source_root}/packages/backend/src/lib/logger.ts")
     shared_hash = filemd5("${var.backend_source_root}/packages/shared/src/ws.ts")
   }
 
@@ -103,6 +104,16 @@ resource "aws_iam_role_policy" "lambda_data" {
   })
 }
 
+resource "aws_cloudwatch_log_group" "rest" {
+  name              = "/aws/lambda/${var.name_prefix}-rest"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_cloudwatch_log_group" "ws" {
+  name              = "/aws/lambda/${var.name_prefix}-ws"
+  retention_in_days = var.log_retention_days
+}
+
 resource "aws_lambda_function" "rest" {
   function_name = "${var.name_prefix}-rest"
   role          = aws_iam_role.lambda.arn
@@ -117,6 +128,13 @@ resource "aws_lambda_function" "rest" {
   environment {
     variables = local.lambda_env
   }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = aws_cloudwatch_log_group.rest.name
+  }
+
+  depends_on = [aws_cloudwatch_log_group.rest]
 }
 
 resource "aws_lambda_function" "ws" {
@@ -133,4 +151,11 @@ resource "aws_lambda_function" "ws" {
   environment {
     variables = local.lambda_env
   }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = aws_cloudwatch_log_group.ws.name
+  }
+
+  depends_on = [aws_cloudwatch_log_group.ws]
 }
