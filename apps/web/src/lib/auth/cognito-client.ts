@@ -83,7 +83,11 @@ export function createCognitoAuthClient(
             Password: password,
           }),
           {
-            onSuccess: (session) => resolve(sessionToAuth(session)),
+            onSuccess: (session) => {
+              const auth = sessionToAuth(session);
+              auth.refreshToken = session.getRefreshToken().getToken();
+              resolve(auth);
+            },
             onFailure: (err) => reject(err),
             newPasswordRequired: () =>
               reject(new Error('Password change required — contact support')),

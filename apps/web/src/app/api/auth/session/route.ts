@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { getAuthConfig } from '@/lib/auth/config';
 import { signMockRefreshToken } from '@/lib/auth/mock-crypto';
 import { REFRESH_COOKIE_OPTIONS } from '@/lib/auth/server';
@@ -17,15 +16,14 @@ export async function POST(request: Request) {
       ? signMockRefreshToken(body.refreshToken, config.sessionSecret)
       : body.refreshToken;
 
-  const jar = await cookies();
-  jar.set(config.cookieName, cookieValue, REFRESH_COOKIE_OPTIONS);
-
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true });
+  response.cookies.set(config.cookieName, cookieValue, REFRESH_COOKIE_OPTIONS);
+  return response;
 }
 
 export async function DELETE() {
   const config = getAuthConfig();
-  const jar = await cookies();
-  jar.delete(config.cookieName);
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true });
+  response.cookies.delete(config.cookieName);
+  return response;
 }

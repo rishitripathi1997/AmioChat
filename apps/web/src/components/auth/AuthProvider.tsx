@@ -53,7 +53,8 @@ async function persistSession(session: AuthSession, refreshToken?: string) {
     }),
   });
   if (!res.ok) {
-    throw new Error('Failed to persist session');
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? 'Failed to persist session');
   }
 }
 
@@ -95,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback(
     async (input: SignInInput) => {
       const session = await client.signIn(input);
-      await persistSession(session);
+      await persistSession(session, session.refreshToken);
       applySession(session);
     },
     [applySession, client],

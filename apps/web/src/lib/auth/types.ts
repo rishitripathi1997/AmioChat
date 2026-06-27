@@ -15,6 +15,8 @@ export interface AuthTokens {
 export interface AuthSession {
   user: AuthUser;
   tokens: AuthTokens;
+  /** Present after sign-in; used once to set the httpOnly refresh cookie. */
+  refreshToken?: string;
 }
 
 export interface SignUpInput {
