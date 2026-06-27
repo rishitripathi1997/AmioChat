@@ -12,7 +12,8 @@ applications:
           commands:
             - npm run build --workspace @amiochat/web
       artifacts:
-        baseDirectory: .next
+        # With buildPath: /, baseDirectory is relative to repo root (see AWS monorepo docs).
+        baseDirectory: apps/web/.next
         files:
           - '**/*'
       cache:
