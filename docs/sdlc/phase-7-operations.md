@@ -27,7 +27,7 @@
 | 7.2 | CloudWatch log groups (14-day retention) + JSON Lambda logs | **Complete** |
 | 7.3 | CloudWatch alarms (Lambda errors, HTTP 5xx, WS integration errors) | **Complete** |
 | 7.4 | CloudWatch operations dashboard | **Complete** |
-| 7.5 | SNS/email alarm notifications | Pending (optional) |
+| 7.5 | SNS/email alarm notifications | **Complete** |
 | 7.6 | Staging/prod ops checklist + on-call runbook | Pending |
 
 ---
@@ -40,6 +40,7 @@ After `terraform apply`, outputs include:
 |--------|-----|
 | `cloudwatch_dashboard_name` | Open in **CloudWatch → Dashboards** |
 | `lambda_log_groups` | **CloudWatch → Log groups** for REST / WS Lambda |
+| `alarm_sns_topic_arn` | SNS topic for alarm emails (null if `alarm_emails` unset) |
 
 ### Dashboard widgets
 
@@ -48,7 +49,9 @@ After `terraform apply`, outputs include:
 - WebSocket connects, messages, integration errors
 - DynamoDB consumed read/write capacity
 
-### Alarms (no SNS yet)
+### Alarms
+
+When `alarm_emails` is set in Terraform, all alarms publish to an SNS topic and email subscribers on **ALARM** and **OK** (recovery).
 
 | Alarm | Metric | Default threshold |
 |-------|--------|-------------------|
@@ -58,15 +61,49 @@ After `terraform apply`, outputs include:
 | `{prefix}-ops-http-5xx` | API Gateway 5xx | ≥ 10 / 5 min |
 | `{prefix}-ops-ws-integration-errors` | WS IntegrationError | ≥ 5 / 5 min |
 
-Alarms are created in **ALARM** state only when thresholds breach. No email/SNS subscription is wired yet (step 7.5).
-
-### Log retention
-
-Variable `log_retention_days` (default **14**) in `infra/terraform/variables.tf`.
+If `alarm_emails` is empty (default), alarms still exist but send no notifications.
 
 ---
 
-## 4. Structured logging
+## 4. Alarm email setup (7.5)
+
+### Configure
+
+In `terraform.tfvars` (or environment tfvars):
+
+```hcl
+alarm_emails = ["you@example.com", "oncall@example.com"]
+```
+
+Apply:
+
+```bash
+cd infra/terraform
+terraform apply
+```
+
+### Confirm SNS subscription
+
+After apply, each address receives an **AWS Notification – Subscription Confirmation** email. Click **Confirm subscription** — alerts are not delivered until confirmed.
+
+Check pending subscriptions:
+
+```bash
+terraform output alarm_sns_topic_arn
+aws sns list-subscriptions-by-topic \
+  --topic-arn "$(terraform output -raw alarm_sns_topic_arn)" \
+  --region us-east-1
+```
+
+Status must be `Confirmed`, not `PendingConfirmation`.
+
+### Test (optional)
+
+Manually set an alarm to ALARM in the CloudWatch console, or temporarily lower thresholds in the monitoring module variables.
+
+---
+
+## 5. Structured logging
 
 Lambda emits JSON lines compatible with CloudWatch Logs Insights:
 
@@ -87,9 +124,13 @@ fields @timestamp, message, statusCode, method, path
 
 WebSocket logs include `routeKey`, `connectionId`, and `userId` (after authenticate).
 
+### Log retention
+
+Variable `log_retention_days` (default **14**) in `infra/terraform/variables.tf`.
+
 ---
 
-## 5. Health checks
+## 6. Health checks
 
 | Check | Command / URL |
 |-------|----------------|
@@ -100,9 +141,9 @@ WebSocket logs include `routeKey`, `connectionId`, and `userId` (after authentic
 
 ---
 
-## 6. Runbooks
+## 7. Runbooks
 
-### 6.1 Deploy (staging / prod)
+### Deploy (staging / prod)
 
 1. Merge to target branch; CI tests pass.
 2. `cd infra/terraform`
@@ -112,19 +153,19 @@ WebSocket logs include `routeKey`, `connectionId`, and `userId` (after authentic
 6. Update Amplify env vars from `terraform output amplify_environment_variables`
 7. Redeploy Amplify branch; run smoke test (Phase 6.7 checklist).
 
-### 6.2 Rollback (application)
+### Rollback (application)
 
 1. **Amplify:** Redeploy previous successful build (Deployments → Redeploy).
 2. **Lambda/API:** Re-apply previous Terraform state or revert Git commit and re-apply.
 3. Verify `/health` and login.
 
-### 6.3 Rollback (infrastructure)
+### Rollback (infrastructure)
 
 1. `git checkout <last-known-good>` for `infra/terraform/`
 2. `terraform apply -var-file=environments/<env>.tfvars`
 3. Never `terraform destroy` in prod unless intentional teardown.
 
-### 6.4 Incident: API 5xx spike
+### Incident: API 5xx spike
 
 1. Open CloudWatch dashboard `{name_prefix}-ops`.
 2. Check alarm `{prefix}-ops-http-5xx` and `{prefix}-ops-rest-errors`.
@@ -132,14 +173,14 @@ WebSocket logs include `routeKey`, `connectionId`, and `userId` (after authentic
 4. Common causes: DynamoDB throttling, bad deploy, CORS misconfiguration.
 5. Roll back Lambda or Amplify if tied to recent deploy.
 
-### 6.5 Incident: Messages not delivering
+### Incident: Messages not delivering
 
 1. Check `{prefix}-ops-ws-errors` and WS **IntegrationError** on dashboard.
 2. Logs on `/aws/lambda/{prefix}-ws` — look for `ws.authenticated`, `ws.sendMessage`, `ws.failed`.
 3. Confirm Amplify has `NEXT_PUBLIC_WS_URL` and clients show **connected** (not stuck on Connecting).
 4. Verify WebSocket `authenticate` flow (see Phase 6 deployment notes).
 
-### 6.6 Teardown (dev / experiment)
+### Teardown (dev / experiment)
 
 ```bash
 cd infra/terraform
@@ -151,7 +192,7 @@ Delete Amplify app separately. Confirm zero recurring charges in **Billing → C
 
 ---
 
-## 7. Environment matrix
+## 8. Environment matrix
 
 | Environment | State backend | tfvars | Typical use |
 |-------------|---------------|--------|-------------|
@@ -161,16 +202,15 @@ Delete Amplify app separately. Confirm zero recurring charges in **Billing → C
 
 ---
 
-## 8. Next steps (7.5 – 7.6)
+## 9. Next steps (7.6)
 
-- Wire alarms to **SNS → email** or Slack for staging/prod.
-- Add **X-Ray** or ADOT tracing (optional).
 - Document on-call rotation and escalation for prod.
 - Set **DynamoDB** alarms on `UserErrors` / throttling if traffic grows.
+- Add **X-Ray** or ADOT tracing (optional).
 
 ---
 
-## 9. Approval
+## 10. Approval
 
 | Role | Name | Date |
 |------|------|------|

@@ -42,8 +42,48 @@ variable "alarm_http_5xx_threshold" {
   default     = 10
 }
 
+variable "alarm_emails" {
+  type        = list(string)
+  description = "Email addresses for CloudWatch alarm SNS notifications (confirm subscription via email after apply)"
+  default     = []
+}
+
 locals {
-  alarm_prefix = "${var.name_prefix}-ops"
+  alarm_prefix     = "${var.name_prefix}-ops"
+  enable_alarm_sns = length(var.alarm_emails) > 0
+}
+
+resource "aws_sns_topic" "alarms" {
+  count = local.enable_alarm_sns ? 1 : 0
+  name  = "${local.alarm_prefix}-alarms"
+}
+
+resource "aws_sns_topic_policy" "alarms" {
+  count = local.enable_alarm_sns ? 1 : 0
+  arn   = aws_sns_topic.alarms[0].arn
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "AllowCloudWatchPublish"
+      Effect    = "Allow"
+      Principal = { Service = "cloudwatch.amazonaws.com" }
+      Action    = "SNS:Publish"
+      Resource  = aws_sns_topic.alarms[0].arn
+    }]
+  })
+}
+
+resource "aws_sns_topic_subscription" "alarm_email" {
+  for_each = local.enable_alarm_sns ? toset(var.alarm_emails) : toset([])
+
+  topic_arn = aws_sns_topic.alarms[0].arn
+  protocol  = "email"
+  endpoint  = each.value
+}
+
+locals {
+  alarm_action_arns = local.enable_alarm_sns ? [aws_sns_topic.alarms[0].arn] : []
 }
 
 resource "aws_cloudwatch_metric_alarm" "rest_lambda_errors" {
@@ -57,6 +97,8 @@ resource "aws_cloudwatch_metric_alarm" "rest_lambda_errors" {
   statistic           = "Sum"
   threshold           = var.alarm_error_threshold
   treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_action_arns
+  ok_actions          = local.alarm_action_arns
 
   dimensions = {
     FunctionName = var.rest_function_name
@@ -74,6 +116,8 @@ resource "aws_cloudwatch_metric_alarm" "ws_lambda_errors" {
   statistic           = "Sum"
   threshold           = var.alarm_error_threshold
   treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_action_arns
+  ok_actions          = local.alarm_action_arns
 
   dimensions = {
     FunctionName = var.ws_function_name
@@ -91,6 +135,8 @@ resource "aws_cloudwatch_metric_alarm" "rest_lambda_throttles" {
   statistic           = "Sum"
   threshold           = 1
   treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_action_arns
+  ok_actions          = local.alarm_action_arns
 
   dimensions = {
     FunctionName = var.rest_function_name
@@ -108,6 +154,8 @@ resource "aws_cloudwatch_metric_alarm" "http_api_5xx" {
   statistic           = "Sum"
   threshold           = var.alarm_http_5xx_threshold
   treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_action_arns
+  ok_actions          = local.alarm_action_arns
 
   dimensions = {
     ApiId = var.http_api_id
@@ -125,6 +173,8 @@ resource "aws_cloudwatch_metric_alarm" "ws_integration_errors" {
   statistic           = "Sum"
   threshold           = 5
   treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_action_arns
+  ok_actions          = local.alarm_action_arns
 
   dimensions = {
     ApiId = var.websocket_api_id

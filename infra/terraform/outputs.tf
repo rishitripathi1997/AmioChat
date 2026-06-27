@@ -67,3 +67,8 @@ output "lambda_log_groups" {
     ws   = module.lambda.ws_log_group_name
   }
 }
+
+output "alarm_sns_topic_arn" {
+  description = "SNS topic for CloudWatch alarms (null if alarm_emails not set)"
+  value       = module.monitoring.alarm_sns_topic_arn
+}

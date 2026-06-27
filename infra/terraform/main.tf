@@ -101,4 +101,5 @@ module "monitoring" {
   http_api_id         = module.http_api.api_id
   websocket_api_id    = module.websocket_api.api_id
   dynamodb_table_name = module.dynamodb.table_name
+  alarm_emails        = var.alarm_emails
 }

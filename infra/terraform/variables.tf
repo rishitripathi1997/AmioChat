@@ -37,3 +37,16 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
+
+variable "alarm_emails" {
+  description = "Email addresses for CloudWatch alarm SNS notifications (confirm via AWS email after apply)"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for email in var.alarm_emails : can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", email))
+    ])
+    error_message = "Each alarm_emails entry must be a valid email address."
+  }
+}
