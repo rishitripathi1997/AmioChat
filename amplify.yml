@@ -12,7 +12,7 @@ applications:
           commands:
             - npm run build --workspace @amiochat/web
       artifacts:
-        baseDirectory: apps/web/.next
+        baseDirectory: .next
         files:
           - '**/*'
       cache:
