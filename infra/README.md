@@ -167,4 +167,7 @@ aws ssm get-parameters-by-path --path /amiochat/dev --recursive --profile amioch
 - [Phase 2 Architecture](../docs/sdlc/phase-2-architecture.md)
 - [Phase 4 Implementation](../docs/sdlc/phase-4-implementation.md)
 - [Phase 6 Deployment](../docs/sdlc/phase-6-deployment.md)
+- [Phase 7 Operations](../docs/sdlc/phase-7-operations.md)
+- [Staging/prod checklist](../docs/sdlc/ops/staging-prod-checklist.md)
+- [On-call runbook](../docs/sdlc/ops/on-call-runbook.md)
 - [DynamoDB schema](../docs/sdlc/design/dynamodb-schema.md)

@@ -13,7 +13,7 @@ This folder tracks deliverables across the software development lifecycle for Am
 | 4     | Implementation           | **Complete**    | [phase-4-implementation.md](./phase-4-implementation.md) |
 | 5     | Testing                  | **Complete**    | [phase-5-testing.md](./phase-5-testing.md)             |
 | 6     | Deployment               | **Complete**    | [phase-6-deployment.md](./phase-6-deployment.md)       |
-| 7     | Operations               | **In progress** | [phase-7-operations.md](./phase-7-operations.md)       |
+| 7     | Operations               | **Complete**    | [phase-7-operations.md](./phase-7-operations.md)       |
 
 
 ## How to use

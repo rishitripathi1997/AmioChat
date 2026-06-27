@@ -3,7 +3,7 @@
 **Project:** AmioChat  
 **Version:** 0.1  
 **Last updated:** 2026-06-27  
-**Status:** In progress  
+**Status:** Complete  
 **Prerequisites:** Phase 6 (complete)
 
 ---
@@ -28,7 +28,7 @@
 | 7.3 | CloudWatch alarms (Lambda errors, HTTP 5xx, WS integration errors) | **Complete** |
 | 7.4 | CloudWatch operations dashboard | **Complete** |
 | 7.5 | SNS/email alarm notifications | **Complete** |
-| 7.6 | Staging/prod ops checklist + on-call runbook | Pending |
+| 7.6 | Staging/prod ops checklist + on-call runbook | **Complete** |
 
 ---
 
@@ -62,6 +62,13 @@ When `alarm_emails` is set in Terraform, all alarms publish to an SNS topic and 
 | `{prefix}-ops-ws-integration-errors` | WS IntegrationError | ≥ 5 / 5 min |
 
 If `alarm_emails` is empty (default), alarms still exist but send no notifications.
+
+### Ops playbooks (7.6)
+
+| Document | Use |
+|----------|-----|
+| [ops/staging-prod-checklist.md](./ops/staging-prod-checklist.md) | First-time setup, pre/post deploy, periodic ops |
+| [ops/on-call-runbook.md](./ops/on-call-runbook.md) | Alarm triage, incident flow, rollback, escalation |
 
 ---
 
@@ -202,11 +209,14 @@ Delete Amplify app separately. Confirm zero recurring charges in **Billing → C
 
 ---
 
-## 9. Next steps (7.6)
+## 9. Future improvements (post-MVP)
 
-- Document on-call rotation and escalation for prod.
-- Set **DynamoDB** alarms on `UserErrors` / throttling if traffic grows.
-- Add **X-Ray** or ADOT tracing (optional).
+Optional enhancements after go-live — not required for Phase 7 sign-off:
+
+- **DynamoDB alarms** on `UserErrors` / throttling when traffic grows
+- **X-Ray** or ADOT distributed tracing
+- Formal on-call rotation (PagerDuty/Opsgenie) when team size increases
+- Slack SNS subscription alongside email
 
 ---
 
